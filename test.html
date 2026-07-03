@@ -304,6 +304,23 @@
       </p>
     </div>
 
+    <!-- 20. RAW unicode logic/math symbols (NOT LaTeX, NOT wrapped in code) -->
+    <div class="card">
+      <small class="tag">20 · Raw Unicode symbols, no LaTeX wrapper (bug repro)</small>
+      <p>
+        הייתה בעצם הפסוק המקורי בלי ה־¬ החיצונית. זה לא פישוט - r¬ → (p∧q) - אז
+        התשובה שנתת
+      </p>
+      <ul>
+        <li>הנחה: (p∧q) → נשארת</li>
+        <li>מסקנה: ¬r → ¬¬r = r מקבלת שלילה</li>
+      </ul>
+      <p><em>Same content, but tokens wrapped in &lt;strong&gt; like Claude's markdown bold output:</em></p>
+      <ul>
+        <li>מסקנה: <strong>¬r</strong> → <strong>¬¬r = r</strong> מקבלת שלילה</li>
+      </ul>
+    </div>
+
     <script>
       var btn = document.getElementById("ab");
       var state = document.getElementById("state");
@@ -312,6 +329,17 @@
         var on = el.getAttribute("data-hebi") === "on";
         el.setAttribute("data-hebi", on ? "off" : "on");
         state.textContent = "data-hebi = " + (on ? "off" : "on");
+      });
+
+      /* Load the real content.js AFTER KaTeX has rendered, so the text
+         scanner never touches raw \(...\) delimiters. (In the real
+         extension there is no KaTeX race — pages arrive already rendered.)
+         This makes the test page demonstrate the JS wrapper too, not just
+         the CSS. */
+      window.addEventListener("load", function () {
+        var s = document.createElement("script");
+        s.src = "content.js";
+        document.body.appendChild(s);
       });
     </script>
   </body>

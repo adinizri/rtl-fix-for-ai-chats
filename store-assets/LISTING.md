@@ -45,9 +45,11 @@ Mistral, Meta AI, Poe, Qwen, HuggingFace Chat, You.com, Phind, Kimi, and
 ChatGLM.
 
 No tracking, no analytics, no network requests, no data collection of any
-kind. Pure CSS — works instantly on streamed answers as they're typed, with
-one on/off toggle in the toolbar popup that applies immediately (no page
-reload). Open source: github.com/adinizri/rtl-fix-for-ai-chats
+kind — everything runs locally in your browser. CSS does the heavy lifting,
+plus a tiny script that wraps raw math symbols (like ¬, →, ∧) that CSS alone
+can't protect from reordering. One on/off toggle in the toolbar popup applies
+immediately (no page reload). Open source:
+github.com/adinizri/rtl-fix-for-ai-chats
 ```
 
 **Category**
@@ -89,8 +91,8 @@ No other data is stored.
 Host permission (per-site, e.g. claude.ai, chatgpt.com, gemini.google.com, …):
 ```
 Required so the extension's CSS/JS can run on this AI chat site to fix
-right-to-left text rendering. The extension does not read, collect, or
-transmit page content — it only applies CSS direction/alignment rules.
+right-to-left text rendering. All processing is local to the page; the
+extension does not collect or transmit any page content.
 ```
 
 **Are you using remote code?**

@@ -25,7 +25,8 @@ flip the whole message container to `direction: rtl`, the math renders backwards
 and broken, code misaligns, and numbers/symbols get shuffled. So this extension
 **never** sets `direction: rtl` on any container.
 
-Instead it uses three CSS principles:
+Instead it uses three CSS principles, plus one minimal JS helper for the
+single case CSS can't reach:
 
 1. **Per-block auto direction** — `unicode-bidi: plaintext` (the CSS equivalent
    of `dir="auto"`) on text blocks (`p, li, dd, dt, blockquote, figcaption,
@@ -39,13 +40,29 @@ Instead it uses three CSS principles:
    `.katex, .katex-display, mjx-container, code, pre, kbd, samp`. Isolation
    stops the surrounding RTL flow from reordering them and vice-versa. This is
    what keeps math from "going backwards" (e.g. `x > 0` rendering as `0x>`).
+4. **Raw-text wrapping (JS)** — AI chats sometimes emit math/logic as plain
+   text (`¬¬r = r`, `(p ∧ q) → ¬r`) with no element around it at all, which
+   no CSS selector can target. A small scanner in `content.js` wraps those
+   runs in `<span class="hebi-ltr">` so principle 3 can isolate them too
+   (details below).
 
 All the critical rules are marked `!important` so a host site's own stylesheet
 can't silently override the isolation.
 
-It's **pure CSS**, gated behind `html[data-hebi="on"]`. No MutationObserver, no
-DOM rewriting — so streamed messages and React re-renders are handled
-automatically, with no performance cost.
+Almost all of this is **CSS**, gated behind `html[data-hebi="on"]`, so streamed
+messages and React re-renders are covered automatically at no cost. One case
+CSS cannot reach: math written as *raw text* — e.g. `(p ∧ q) → ¬r` with no
+LaTeX, `<code>`, or bold wrapper around it — inside an RTL sentence, because
+CSS cannot select a substring of a text node. For that one case, `content.js`
+runs a small scanner (MutationObserver) that waits until a streamed answer
+goes quiet (~400 ms), then wraps just those symbol runs in an isolating
+`<span class="hebi-ltr">`. The scanner never descends into math/code/editors,
+trims binary connectors (arrows, `=`, `∧`…) off run edges so they stay
+correctly placed in the surrounding RTL flow, keeps unary prefixes like `¬`
+attached to their operand, and never mutates the DOM mid-stream (so it can't
+fight the site's own renderer). The isolation itself still lives in the gated
+CSS — the popup toggle stays instant, and injected spans simply become inert
+when the fix is off, with no DOM unwrapping needed.
 
 ## Install (unpacked)
 
@@ -102,7 +119,7 @@ class names, it works across sites and survives their frequent DOM redeploys.
 | --------------- | ---------------------------------------------------------- |
 | `manifest.json` | MV3 config: content script, popup, icons, `storage` perm   |
 | `content.css`   | All the bidi logic, gated on `html[data-hebi="on"]`        |
-| `content.js`    | Sets `data-hebi` from `chrome.storage.sync`, listens live  |
+| `content.js`    | Toggle gate + raw-text scanner (wraps bare symbol runs)    |
 | `popup.html`    | Toggle UI                                                  |
 | `popup.js`      | Syncs the toggle with `chrome.storage.sync`                |
 | `icons/`        | Extension icons (16/32/48/128)                             |

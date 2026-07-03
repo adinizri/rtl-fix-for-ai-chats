@@ -105,6 +105,39 @@ html[data-hebi="on"] :not(pre) > code {
   unicode-bidi: isolate !important;
 }
 
+/* Bold/emphasis runs (strong, em, …) are also isolated — but with
+   `plaintext`, not a forced `direction: ltr`. AI answers often bold raw
+   math/logic tokens (¬r, →, =) instead of wrapping them in LaTeX or
+   <code>; left un-isolated, those neutral symbols get reordered by the
+   RTL bidi algorithm based on their Hebrew/Arabic neighbors (e.g. "¬r →
+   ¬¬r = r" can render as "r → ¬¬r = r¬"). `plaintext` isolates the run
+   AND lets it resolve its own direction from its first strong character,
+   so a bold math token still resolves LTR while a bold Hebrew/Arabic
+   word still resolves RTL — unlike the islands above, we must NOT force
+   `direction: ltr` here or bold RTL words would break instead. */
+html[data-hebi="on"] strong,
+html[data-hebi="on"] b,
+html[data-hebi="on"] em,
+html[data-hebi="on"] i,
+html[data-hebi="on"] var,
+html[data-hebi="on"] sup,
+html[data-hebi="on"] sub {
+  unicode-bidi: plaintext !important;
+}
+
+/* Spans injected by content.js around RAW math/logic runs that live in a
+   mixed RTL text node with no wrapper element of their own — the only
+   case pure CSS cannot reach, because CSS cannot target a substring of a
+   text node. content.js finds runs like "(p ∧ q) → ¬r" or "¬¬r = r" and
+   wraps each in <span class="hebi-ltr">; this rule isolates them LTR.
+   Because the isolation lives here (gated on data-hebi) and NOT as an
+   inline style or dir attribute, toggling the extension off makes every
+   injected span inert with no need to unwrap the DOM. */
+html[data-hebi="on"] .hebi-ltr {
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+}
+
 
 /* =====================================================================
    4. COMPOSER / EDITOR  — REMOVABLE SECTION

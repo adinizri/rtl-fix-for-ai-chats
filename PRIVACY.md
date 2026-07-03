@@ -12,9 +12,12 @@ extension itself.
 The extension injects a CSS stylesheet (`content.css`) and a small script
 (`content.js`) into the pages listed in its `matches` configuration (AI chat
 sites such as claude.ai, chatgpt.com, gemini.google.com, and others). The CSS
-adjusts text direction and alignment for right-to-left languages; it does not
-read, copy, or transmit any text, message content, or credentials from the
-page.
+adjusts text direction and alignment for right-to-left languages. The script
+additionally scans displayed text locally, entirely inside your browser, for
+the sole purpose of wrapping runs of math/logic symbols (such as `¬`, `→`,
+`∧`) in a styling element so they are not visually reordered. This processing
+never leaves the page: no text, message content, or credentials are copied,
+stored, or transmitted anywhere.
 
 ## Data storage
 
@@ -29,7 +32,7 @@ own server and has no access to this value outside your browser.
 | Permission | Why it's needed |
 | --- | --- |
 | `storage` | Persist the on/off toggle state (see above). Nothing else is stored. |
-| Host access to AI chat sites (see `manifest.json`) | Required so the content script (CSS + toggle logic) can run on those pages. The extension does not read page content, does not use a background service worker, and makes no network requests of its own. |
+| Host access to AI chat sites (see `manifest.json`) | Required so the content script (CSS + text-direction fixes) can run on those pages. All text processing is local to the page; the extension does not collect or transmit page content, does not use a background service worker, and makes no network requests of its own. |
 
 ## Third parties
 
