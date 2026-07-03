@@ -75,20 +75,28 @@ html[data-hebi="on"] th:dir(rtl) {
 
 
 /* =====================================================================
-   2b. RTL LIST MARKERS  (bullets / numbers on the right)
+   2b. RTL BLOCK DIRECTION  (markers, blockquote bar, alignment on the right)
    ---------------------------------------------------------------------
-   `unicode-bidi: plaintext` fixes an <li>'s inline text but does NOT set
-   its `direction`, and the ::marker follows `direction` — so RTL list
-   markers stay stuck on the left. CSS can't detect content direction
-   here (`:dir()` reflects the HTML dir attribute, not the plaintext CSS
-   value), so content.js tags lists that read RTL with `.hebi-rtl`. Only
-   then do we flip direction, which moves the marker AND the indent to
-   the right; each item's inline content stays correct because the <li>
-   still carries `unicode-bidi: plaintext` from section 1.
+   `unicode-bidi: plaintext` fixes a block's inline text but does NOT set
+   its `direction`. Anything that follows `direction` therefore stays on
+   the LTR side for RTL content: list ::markers (bullets/numbers), a
+   blockquote's inline-start accent bar + padding, and start-based
+   alignment when the host site pins it. CSS can't detect content
+   direction here (`:dir()` reflects the HTML dir attribute, not the
+   plaintext CSS value), so content.js tags blocks that read RTL with
+   `.hebi-rtl`. Only then do we flip direction — moving markers, the
+   blockquote bar and the indent to the right — while each block's inline
+   content stays correct because it still carries `unicode-bidi:
+   plaintext` from section 1. text-align:right is a belt-and-suspenders
+   for sites that explicitly pin the alignment left.
    ===================================================================== */
 html[data-hebi="on"] ul.hebi-rtl,
-html[data-hebi="on"] ol.hebi-rtl {
+html[data-hebi="on"] ol.hebi-rtl,
+html[data-hebi="on"] blockquote.hebi-rtl {
   direction: rtl !important;
+}
+html[data-hebi="on"] blockquote.hebi-rtl {
+  text-align: right !important;
 }
 
 

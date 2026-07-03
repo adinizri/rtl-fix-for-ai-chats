@@ -171,39 +171,43 @@
     parent.replaceChild(frag, tn);
   }
 
-  // ----- List marker direction ---------------------------------------
-  // `unicode-bidi: plaintext` fixes a list item's inline text but does NOT
-  // set its `direction`, and the ::marker (bullet/number) follows `direction`
-  // — so RTL list markers stay stuck on the left. `:dir(rtl)` can't help
-  // either: it reflects the HTML dir attribute, not the CSS plaintext value.
-  // So we tag any list whose content reads RTL with `.hebi-rtl`; gated CSS
-  // then flips just that list's direction, moving markers + indent to the
-  // right while plaintext keeps each item's inline content correct.
-  function tagOneList(list) {
-    if (!list || list.nodeType !== 1) return;
+  // ----- Block-level direction ---------------------------------------
+  // `unicode-bidi: plaintext` fixes a block's inline text but does NOT set its
+  // `direction`. Anything that follows `direction` therefore stays stuck on
+  // the LTR side for RTL content: list ::markers (bullets/numbers), a
+  // blockquote's inline-start accent bar and padding, and start-based
+  // alignment when a host site pins it. `:dir(rtl)` can't help — it reflects
+  // the HTML dir attribute, not the CSS plaintext value, so it never matches.
+  // So we tag any such block whose content reads RTL with `.hebi-rtl`; gated
+  // CSS then flips just that block's direction, while plaintext keeps its
+  // inline content correct.
+  var DIR_SEL = "ul,ol,blockquote";
+
+  function tagOneBlock(el) {
+    if (!el || el.nodeType !== 1) return;
     try {
-      if (list.classList.contains("hebi-rtl")) return; // already decided RTL
-      if (skip(list)) return;
-      if (firstStrongIsRtl(list.textContent || "")) list.classList.add("hebi-rtl");
+      if (el.classList.contains("hebi-rtl")) return; // already decided RTL
+      if (skip(el)) return;
+      if (firstStrongIsRtl(el.textContent || "")) el.classList.add("hebi-rtl");
     } catch (e) {
-      /* ignore a single bad list */
+      /* ignore a single bad block */
     }
   }
 
-  function tagLists(root) {
+  function tagBlocks(root) {
     if (!root) return;
     var el = root.nodeType === 3 ? root.parentElement : root;
     if (!el || el.nodeType !== 1) return;
     try {
-      // the list this node lives in (e.g. an <li> streamed into an existing <ul>)
+      // the block this node lives in (e.g. an <li> streamed into a live <ul>)
       if (el.closest) {
-        var anc = el.closest("ul,ol");
-        if (anc) tagOneList(anc);
+        var anc = el.closest(DIR_SEL);
+        if (anc) tagOneBlock(anc);
       }
-      // any lists inside the changed subtree
+      // any managed blocks inside the changed subtree
       if (el.querySelectorAll) {
-        var lists = el.querySelectorAll("ul,ol");
-        for (var i = 0; i < lists.length; i++) tagOneList(lists[i]);
+        var blocks = el.querySelectorAll(DIR_SEL);
+        for (var i = 0; i < blocks.length; i++) tagOneBlock(blocks[i]);
       }
     } catch (e) {
       /* ignore */
@@ -240,7 +244,7 @@
 
     if (observer) observer.disconnect(); // don't observe our own writes
     try {
-      for (var r = 0; r < roots.length; r++) tagLists(roots[r]); // RTL list markers
+      for (var r = 0; r < roots.length; r++) tagBlocks(roots[r]); // RTL block direction
       for (var j = 0; j < nodes.length; j++) {
         try {
           wrapTextNode(nodes[j]);

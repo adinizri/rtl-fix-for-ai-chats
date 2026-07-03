@@ -44,10 +44,11 @@ single case CSS can't reach:
    math/logic as plain text (`¬¬r = r`, `(p ∧ q) → ¬r`) with no element around
    it at all, which no CSS selector can target. A small scanner in
    `content.js` wraps those runs in `<span class="hebi-ltr">` so principle 3
-   can isolate them. The same scanner also tags lists that read RTL with
-   `.hebi-rtl` so their bullets/numbers move to the right — `unicode-bidi:
-   plaintext` fixes a list item's text but can't move its `::marker`, and
-   `:dir()` can't detect the CSS-only direction (details below).
+   can isolate them. The same scanner also tags blocks that read RTL
+   (lists, blockquotes) with `.hebi-rtl` so their `direction` flips right —
+   `unicode-bidi: plaintext` fixes a block's inline text but can't move a
+   list's `::marker` or a blockquote's inline-start accent bar, and `:dir()`
+   can't detect the CSS-only direction (details below).
 
 All the critical rules are marked `!important` so a host site's own stylesheet
 can't silently override the isolation.

@@ -205,12 +205,32 @@
       <h3>Section 3 · English heading stays on the left</h3>
     </div>
 
-    <!-- 12. Blockquote in Hebrew with inline math -->
+    <!-- 12. Blockquote in Hebrew with inline math.
+         Styled like an AI chat's markdown blockquote (logical inline-start
+         accent bar + padding, as Tailwind Typography emits) so the accent
+         bar and alignment must both flip to the right for RTL. -->
     <div class="card">
-      <small class="tag">12 · Blockquote (RTL)</small>
-      <blockquote>
+      <small class="tag">12 · Blockquote (RTL — bar + text on the right)</small>
+      <blockquote
+        style="
+          border-inline-start: 4px solid #c7c9d1;
+          padding-inline-start: 16px;
+          margin-inline: 0;
+          color: #3f3f46;
+        "
+      >
         "כאשר \(x \to \infty\), הביטוי \(\frac{1}{x}\) שואף לאפס" — כך מגדירים
         גבול במתמטיקה.
+      </blockquote>
+      <blockquote
+        style="
+          border-inline-start: 4px solid #c7c9d1;
+          padding-inline-start: 16px;
+          margin-inline: 0;
+          color: #3f3f46;
+        "
+      >
+        "An English blockquote — bar and text must stay on the LEFT."
       </blockquote>
     </div>
 
