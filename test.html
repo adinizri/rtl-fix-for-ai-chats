@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="he" data-hebi="on">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RTL Fix for AI Chats — Test Page</title>
+
+    <!-- Real KaTeX from CDN + auto-render -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+    />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+      onload="renderMathInElement(document.body, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\(', right: '\\)', display: false},
+          {left: '\\[', right: '\\]', display: true}
+        ]
+      });"
+    ></script>
+
+    <!-- The real extension stylesheet -->
+    <link rel="stylesheet" href="content.css" />
+
+    <style>
+      /* Explicit light theme so the page stays readable even when the
+         browser/OS is in dark mode (otherwise dark text lands on a dark
+         default background). */
+      html {
+        background: #ffffff;
+        color-scheme: light;
+      }
+      body {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial,
+          sans-serif;
+        line-height: 1.7;
+        background: #ffffff;
+        color: #1c1c1e;
+      }
+      .toolbar {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 10px 0;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      button {
+        font-size: 13px;
+        padding: 6px 12px;
+        border: 1px solid #4f46e5;
+        background: #4f46e5;
+        color: #fff;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      code,
+      pre {
+        background: #f3f4f6;
+        border-radius: 4px;
+      }
+      code {
+        padding: 1px 5px;
+        font-size: 0.9em;
+      }
+      pre {
+        padding: 12px;
+        overflow-x: auto;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: 22px 0;
+      }
+      .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 4px 18px;
+        margin-bottom: 16px;
+      }
+      small.tag {
+        color: #6b7280;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button id="ab">Toggle fix (A/B)</button>
+      <span id="state">data-hebi = on</span>
+    </div>
+
+    <!-- 1. Hebrew paragraph with inline math + numbers/percentages -->
+    <div class="card">
+      <small class="tag">1 · Hebrew paragraph + inline math</small>
+      <p>
+        הפונקציה \(f(x) = x^2\) עולה עבור כל \(x &gt; 0\), והשיפוע שלה בנקודה
+        \(x = 3\) שווה ל־6. שים לב ש־45% מהתלמידים ענו נכון על שאלה זו, כלומר
+        כ־120 תלמידים מתוך 267.
+      </p>
+    </div>
+
+    <!-- 2. Display math between Hebrew paragraphs -->
+    <div class="card">
+      <small class="tag">2 · Display equation (centered)</small>
+      <p>הנוסחה לפתרון משוואה ריבועית היא:</p>
+      <p>$$ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} $$</p>
+      <p>כאשר \(a \neq 0\), ישנם שני פתרונות אפשריים.</p>
+    </div>
+
+    <!-- 3. Hebrew list with math + inline code -->
+    <div class="card">
+      <small class="tag">3 · Hebrew list (bullets on the right)</small>
+      <ul>
+        <li>הנגזרת של \(\sin(x)\) היא \(\cos(x)\).</li>
+        <li>הפעל את הפקודה <code>npm install</code> כדי להתקין.</li>
+        <li>האינטגרל \(\int_0^1 x\,dx = \tfrac{1}{2}\) שווה לחצי.</li>
+      </ul>
+    </div>
+
+    <!-- 4. Code block inside a Hebrew answer -->
+    <div class="card">
+      <small class="tag">4 · Code block (fully LTR)</small>
+      <p>הנה דוגמה בקוד:</p>
+      <pre><code>function square(x) {
+  return x * x; // מחזיר את הריבוע
+}</code></pre>
+    </div>
+
+    <!-- 5. Pure English paragraph (must be unchanged) -->
+    <div class="card">
+      <small class="tag">5 · Pure English (unchanged, left-aligned)</small>
+      <p>
+        This paragraph is entirely in English. It should remain left-aligned
+        and completely unaffected by the fix, with math like \(e^{i\pi}+1=0\)
+        inline.
+      </p>
+    </div>
+
+    <!-- 6. Mixed: Hebrew paragraph then English paragraph -->
+    <div class="card">
+      <small class="tag">6 · Mixed — each aligns to its own side</small>
+      <p>פסקה זו בעברית ולכן היא מיושרת לימין.</p>
+      <p>This paragraph is in English and stays aligned to the left.</p>
+    </div>
+
+    <!-- 7. Line that STARTS with inline math (base-direction resolution) -->
+    <div class="card">
+      <small class="tag">7 · Line starting with math (should still resolve RTL)</small>
+      <p>
+        \(E = mc^2\) היא אחת המשוואות המפורסמות ביותר בפיזיקה, שנוסחה על ידי
+        איינשטיין בשנת 1905.
+      </p>
+      <p>
+        \(a^2 + b^2 = c^2\) הוא משפט פיתגורס, ותקף לכל משולש ישר־זווית.
+      </p>
+    </div>
+
+    <!-- 8. Currency, percentages, decimals -->
+    <div class="card">
+      <small class="tag">8 · Currency, percentages, decimals</small>
+      <p>
+        המחיר הוא 150.90 ₪ בלבד, לאחר הנחה של 20% מהמחיר המקורי שהיה 188.63 ₪.
+        בדולרים זה בערך $41.50, כלומר ירידה של כ־12.5 נקודות אחוז.
+      </p>
+    </div>
+
+    <!-- 9. Parentheses, brackets, and quotes inside Hebrew -->
+    <div class="card">
+      <small class="tag">9 · Parentheses / brackets / quotes (correct sides)</small>
+      <p>
+        התוצאה (לאחר עיגול) נמצאת בטווח [0, 1], כפי שמופיע ב"סעיף 3.2" של המסמך —
+        ראה גם את ההערה (עמוד 7).
+      </p>
+    </div>
+
+    <!-- 10. Inline code with symbols inside a Hebrew sentence -->
+    <div class="card">
+      <small class="tag">10 · Inline code with brackets/parens (isolated)</small>
+      <p>
+        כדי לגשת לאיבר הראשון השתמש ב־<code>arr[0]</code>, ואז הפעל
+        <code>map(fn)</code> או <code>items.filter(x =&gt; x &gt; 0)</code> על
+        המערך. הנתיב הוא <code>/usr/local/bin</code>.
+      </p>
+    </div>
+
+    <!-- 11. Hebrew headings with math -->
+    <div class="card">
+      <small class="tag">11 · Headings (RTL) with math</small>
+      <h2>הנגזרת של \(x^n\) שווה ל־\(n \cdot x^{n-1}\)</h2>
+      <h3>סעיף 2 · הפונקציה \(g(x) = \ln(x)\) והתחום שלה</h3>
+      <h3>Section 3 · English heading stays on the left</h3>
+    </div>
+
+    <!-- 12. Blockquote in Hebrew with inline math -->
+    <div class="card">
+      <small class="tag">12 · Blockquote (RTL)</small>
+      <blockquote>
+        "כאשר \(x \to \infty\), הביטוי \(\frac{1}{x}\) שואף לאפס" — כך מגדירים
+        גבול במתמטיקה.
+      </blockquote>
+    </div>
+
+    <!-- 13. Ordered list + nested list, Hebrew -->
+    <div class="card">
+      <small class="tag">13 · Ordered + nested list (numbers on the right)</small>
+      <ol>
+        <li>פתח את המשוואה \(2x + 3 = 11\).</li>
+        <li>
+          חסר 3 משני האגפים:
+          <ul>
+            <li>מתקבל \(2x = 8\).</li>
+            <li>חלק ב־2 כדי לקבל \(x = 4\).</li>
+          </ul>
+        </li>
+        <li>הצב חזרה ובדוק את התוצאה.</li>
+      </ol>
+    </div>
+
+    <!-- 14. Table with Hebrew headers, numeric + math cells -->
+    <div class="card">
+      <small class="tag">14 · Table (RTL headers, LTR math/number cells)</small>
+      <table style="border-collapse: collapse; width: 100%">
+        <thead>
+          <tr>
+            <th style="border: 1px solid #d1d5db; padding: 6px">פונקציה</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px">נגזרת</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px">ערך ב־0</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="border: 1px solid #d1d5db; padding: 6px">\(\sin(x)\)</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px">\(\cos(x)\)</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px">0</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #d1d5db; padding: 6px">\(e^x\)</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px">\(e^x\)</td>
+            <td style="border: 1px solid #d1d5db; padding: 6px">1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 15. Negative numbers, minus signs, ranges -->
+    <div class="card">
+      <small class="tag">15 · Negative numbers, minus, ranges</small>
+      <p>
+        הטמפרטורה ירדה ל־\(-5\) מעלות, שינוי של \(-12.5\%\) תוך שעה. הטווח התקין
+        הוא \([-10, 40]\), והפרש של 3−7 נותן ערך שלילי.
+      </p>
+    </div>
+
+    <!-- 16. English brand names, URLs, emails inside Hebrew -->
+    <div class="card">
+      <small class="tag">16 · Brand names / URLs / emails in Hebrew</small>
+      <p>
+        היכנס לאתר example.com או שלח מייל אל support@example.com לקבלת פרטים.
+        אנחנו משתמשים ב־React ו־TypeScript עבור ה־frontend, גרסה v18.2.0.
+      </p>
+    </div>
+
+    <!-- 17. Punctuation at RTL boundaries -->
+    <div class="card">
+      <small class="tag">17 · Punctuation placement (? ! : ; …)</small>
+      <p>האם הפתרון \(x = 4\) נכון? כן! (בהחלט). כעת נמשיך: שלב הבא.</p>
+      <p>סימני פיסוק בסוף משפט עברי צריכים להופיע בצד שמאל — כך.</p>
+    </div>
+
+    <!-- 18. Arabic — proves the fix is not Hebrew-specific -->
+    <div class="card">
+      <small class="tag">18 · Arabic (RTL) with math &amp; code</small>
+      <p>
+        الدالة \(f(x) = x^2\) تتزايد لكل \(x &gt; 0\)، وميلها عند \(x = 3\) يساوي
+        6. أجاب 45% من الطلاب بشكل صحيح، أي نحو 120 من أصل 267.
+      </p>
+      <ul>
+        <li>مشتقة \(\sin(x)\) هي \(\cos(x)\).</li>
+        <li>شغّل الأمر <code>npm install</code> للتثبيت.</li>
+      </ul>
+    </div>
+
+    <!-- 19. Persian (Farsi) — another RTL script -->
+    <div class="card">
+      <small class="tag">19 · Persian / Farsi (RTL)</small>
+      <p>
+        فرمول حل معادله درجه دوم به صورت \(x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}\)
+        است، در حالتی که \(a \neq 0\) باشد. حدود ۳۰٪ دانش‌آموزان به مسیر
+        <code>src/index.js</code> نیاز داشتند.
+      </p>
+    </div>
+
+    <script>
+      var btn = document.getElementById("ab");
+      var state = document.getElementById("state");
+      btn.addEventListener("click", function () {
+        var el = document.documentElement;
+        var on = el.getAttribute("data-hebi") === "on";
+        el.setAttribute("data-hebi", on ? "off" : "on");
+        state.textContent = "data-hebi = " + (on ? "off" : "on");
+      });
+    </script>
+  </body>
+</html>

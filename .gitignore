@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# Build artifacts
+*.zip
+
+# Editor / OS cruft
+.idea/
+.vscode/
+*.log

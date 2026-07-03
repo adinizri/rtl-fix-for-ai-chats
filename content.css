@@ -1,0 +1,127 @@
+/* =====================================================================
+   RTL Fix for AI Chats
+   ---------------------------------------------------------------------
+   Fixes right-to-left scripts (Hebrew, Arabic, Persian, Urdu, …) on AI
+   chat sites. The logic is script-agnostic: it relies on the browser's
+   own bidi resolution, never on any language-specific rule.
+
+   Every rule is gated behind html[data-hebi="on"] so the whole fix can
+   be toggled instantly from the popup with zero page reload.
+
+   DESIGN RULE (do not violate):
+   We NEVER set `direction: rtl` on any container or message element.
+   A blanket direction flip corrupts KaTeX (math renders backwards).
+   RTL must only ever *emerge* from `unicode-bidi: plaintext` resolving a
+   block's base direction from its own first strong character.
+   `direction` is only ever set explicitly to `ltr`, and only on the
+   isolation islands (math / code) in section 3.
+   ===================================================================== */
+
+
+/* =====================================================================
+   1. PER-BLOCK AUTO DIRECTION
+   ---------------------------------------------------------------------
+   `unicode-bidi: plaintext` is the CSS equivalent of dir="auto": each
+   block resolves its own base direction from its first strong char.
+   Hebrew-first blocks become RTL; English/number-first blocks stay LTR.
+   Inline mixing (English words, numbers, %) is then handled correctly
+   by the browser's native Unicode BiDi Algorithm.
+   Applied to text blocks ONLY — never to containers.
+   ===================================================================== */
+html[data-hebi="on"] p,
+html[data-hebi="on"] li,
+html[data-hebi="on"] dd,
+html[data-hebi="on"] dt,
+html[data-hebi="on"] blockquote,
+html[data-hebi="on"] figcaption,
+html[data-hebi="on"] h1,
+html[data-hebi="on"] h2,
+html[data-hebi="on"] h3,
+html[data-hebi="on"] h4,
+html[data-hebi="on"] h5,
+html[data-hebi="on"] h6,
+html[data-hebi="on"] td,
+html[data-hebi="on"] th {
+  /* !important so a host site's own bidi/direction rules can't defeat it */
+  unicode-bidi: plaintext !important;
+}
+
+
+/* =====================================================================
+   2. DIRECTION-AWARE ALIGNMENT
+   ---------------------------------------------------------------------
+   Only blocks that actually RESOLVED to RTL get right alignment, via the
+   :dir(rtl) pseudo-class. English paragraphs keep their left alignment.
+   For RTL list items this also places the bullet/number on the right.
+   ===================================================================== */
+html[data-hebi="on"] p:dir(rtl),
+html[data-hebi="on"] li:dir(rtl),
+html[data-hebi="on"] dd:dir(rtl),
+html[data-hebi="on"] dt:dir(rtl),
+html[data-hebi="on"] blockquote:dir(rtl),
+html[data-hebi="on"] figcaption:dir(rtl),
+html[data-hebi="on"] h1:dir(rtl),
+html[data-hebi="on"] h2:dir(rtl),
+html[data-hebi="on"] h3:dir(rtl),
+html[data-hebi="on"] h4:dir(rtl),
+html[data-hebi="on"] h5:dir(rtl),
+html[data-hebi="on"] h6:dir(rtl),
+html[data-hebi="on"] td:dir(rtl),
+html[data-hebi="on"] th:dir(rtl) {
+  text-align: right !important;
+}
+
+
+/* =====================================================================
+   3. LTR ISOLATION ISLANDS  (the piece that stops math going backwards)
+   ---------------------------------------------------------------------
+   Technical content is forced LTR and ISOLATED from the surrounding
+   flow. `unicode-bidi: isolate` means the RTL context around it cannot
+   reorder it, and it cannot disturb the surrounding Hebrew. KaTeX,
+   MathJax, and code are all pinned left-to-right regardless of context.
+   ===================================================================== */
+html[data-hebi="on"] .katex,
+html[data-hebi="on"] .katex-display,
+html[data-hebi="on"] mjx-container,
+html[data-hebi="on"] code,
+html[data-hebi="on"] pre,
+html[data-hebi="on"] kbd,
+html[data-hebi="on"] samp {
+  /* !important is essential here: without it, a host site's stylesheet
+     (e.g. `.katex { unicode-bidi: normal }`) wins and the RTL bidi
+     algorithm reorders the math — e.g. `x > 0` renders as `0x>`. */
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+}
+
+/* Display math must stay centered even inside an RTL paragraph. */
+html[data-hebi="on"] .katex-display {
+  text-align: center !important;
+}
+
+/* Inline code inside a Hebrew sentence: isolate so brackets/parens
+   don't visually swap sides. (`pre > code` is covered above.) */
+html[data-hebi="on"] :not(pre) > code {
+  unicode-bidi: isolate !important;
+}
+
+
+/* =====================================================================
+   4. COMPOSER / EDITOR  — REMOVABLE SECTION
+   ---------------------------------------------------------------------
+   Makes typing Hebrew in the message box feel right too. This targets
+   contenteditable editors (e.g. ProseMirror). If it ever conflicts with
+   a site's editor, delete this whole section — sections 1-3 are the
+   actual fix and are independent of this.
+   ===================================================================== */
+html[data-hebi="on"] div[contenteditable="true"] p {
+  unicode-bidi: plaintext !important;
+}
+html[data-hebi="on"] div[contenteditable="true"] p:dir(rtl) {
+  text-align: right !important;
+}
+html[data-hebi="on"] div[contenteditable="true"] .katex,
+html[data-hebi="on"] div[contenteditable="true"] code {
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+}

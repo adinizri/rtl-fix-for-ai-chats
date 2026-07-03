@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "RTL Fix for AI Chats",
+  "version": "1.0.0",
+  "description": "Fixes right-to-left (Hebrew, Arabic, Persian, Urdu…) rendering on AI chat sites while keeping math, code, numbers, and Latin text left-to-right and unbroken.",
+  "permissions": ["storage"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "RTL Fix for AI Chats",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://claude.ai/*",
+        "https://*.claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://*.chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*",
+        "https://aistudio.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
+        "https://poe.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://chat.deepseek.com/*",
+        "https://grok.com/*",
+        "https://x.com/i/grok*",
+        "https://chat.mistral.ai/*",
+        "https://www.meta.ai/*",
+        "https://meta.ai/*",
+        "https://chat.qwen.ai/*",
+        "https://huggingface.co/chat/*",
+        "https://you.com/*",
+        "https://www.phind.com/*",
+        "https://kimi.com/*",
+        "https://chatglm.cn/*"
+      ],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

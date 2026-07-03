@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RTL Fix for AI Chats</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --fg: #1c1c1e;
+        --muted: #6b7280;
+        --accent: #4f46e5;
+        --track: #d1d5db;
+      }
+      * { box-sizing: border-box; }
+      body {
+        width: 250px;
+        margin: 0;
+        padding: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
+      h1 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 2px;
+      }
+      p.sub {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 0 0 14px;
+        line-height: 1.4;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .label {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      /* toggle switch */
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 42px;
+        height: 24px;
+        flex: 0 0 auto;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        inset: 0;
+        background: var(--track);
+        transition: 0.2s;
+        border-radius: 24px;
+      }
+      .slider::before {
+        content: "";
+        position: absolute;
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background: #fff;
+        transition: 0.2s;
+        border-radius: 50%;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      }
+      input:checked + .slider {
+        background: var(--accent);
+      }
+      input:checked + .slider::before {
+        transform: translateX(18px);
+      }
+      .status {
+        margin-top: 12px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1f1f22;
+          --fg: #f3f4f6;
+          --muted: #9ca3af;
+          --track: #4b5563;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>RTL Fix for AI Chats</h1>
+    <p class="sub">
+      Fixes right-to-left layout (Hebrew, Arabic, Persian, Urdu…) on AI chats
+      while keeping math, code, and numbers left-to-right.
+    </p>
+    <div class="row">
+      <span class="label">Enabled</span>
+      <label class="switch">
+        <input type="checkbox" id="toggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="status" id="status">Applies instantly — no reload needed.</div>
+    <script src="popup.js"></script>
+  </body>
+</html>
