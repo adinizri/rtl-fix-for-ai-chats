@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-hebi="on">
+  <head>
+    <meta charset="utf-8" />
+    <title>promo</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="../content.css" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 1280px;
+        background: #f4f4f6;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      }
+      .frame {
+        width: 1280px;
+        height: 800px;
+        background: #f4f4f6;
+        position: relative;
+        overflow: hidden;
+      }
+      .banner {
+        background: #4f46e5;
+        color: #fff;
+        padding: 22px 40px;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .banner .sub {
+        font-size: 15px;
+        font-weight: 400;
+        opacity: 0.85;
+        margin-top: 4px;
+      }
+      .content {
+        padding: 28px 40px;
+      }
+      .bubble {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 20px 26px;
+        margin-bottom: 18px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      }
+      .bubble p, .bubble li { font-size: 20px; line-height: 1.65; margin: 0 0 8px; color: #1c1c1e; }
+      .bubble ul { margin: 0; padding-inline-start: 22px; }
+      code, pre { background: #f3f4f6; border-radius: 5px; }
+      code { padding: 2px 7px; font-size: 0.85em; }
+      pre { padding: 12px 16px; }
+      .badge {
+        display: inline-block;
+        background: #eef2ff;
+        color: #4338ca;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 999px;
+        margin-bottom: 10px;
+      }
+      .lang-row { display: flex; gap: 18px; }
+      .lang-col { flex: 1; }
+      .lang-col .bubble { min-height: 150px; }
+      .footer-mark {
+        position: absolute;
+        bottom: 22px;
+        right: 40px;
+        font-size: 14px;
+        color: #9ca3af;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ============ HERO (before/after) ============ -->
+    <div class="frame" id="hero">
+      <div class="banner" id="hero-banner">
+        <div id="hero-title">With RTL Fix for AI Chats</div>
+        <div class="sub" id="hero-sub">Hebrew, Arabic &amp; Persian render correctly — math and code stay untouched</div>
+      </div>
+      <div class="content">
+        <div class="bubble">
+          <span class="badge">Claude · ChatGPT · Gemini · Perplexity …</span>
+          <p>
+            הפונקציה \(f(x) = x^2\) עולה עבור כל \(x &gt; 0\), והשיפוע שלה בנקודה
+            \(x = 3\) שווה ל־6. שים לב ש־45% מהתלמידים ענו נכון על שאלה זו.
+          </p>
+        </div>
+        <div class="bubble">
+          <p>$$ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} $$</p>
+        </div>
+        <div class="bubble">
+          <ul>
+            <li>הנגזרת של \(\sin(x)\) היא \(\cos(x)\).</li>
+            <li>הפעל את הפקודה <code>npm install</code> כדי להתקין.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-mark">RTL Fix for AI Chats</div>
+    </div>
+
+    <!-- ============ MULTI-LANGUAGE ============ -->
+    <div class="frame" id="langs">
+      <div class="banner">
+        <div>Works for every RTL language</div>
+        <div class="sub">Hebrew · Arabic · Persian · Urdu — not just one script</div>
+      </div>
+      <div class="content">
+        <div class="lang-row">
+          <div class="lang-col">
+            <div class="bubble">
+              <span class="badge">Hebrew</span>
+              <p>הנוסחה לפתרון משוואה ריבועית: $$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$$</p>
+            </div>
+          </div>
+          <div class="lang-col">
+            <div class="bubble">
+              <span class="badge">Arabic</span>
+              <p>الدالة \(f(x) = x^2\) تتزايد لكل \(x &gt; 0\)، وميلها عند \(x = 3\) يساوي 6.</p>
+            </div>
+          </div>
+        </div>
+        <div class="lang-row" style="margin-top: 18px;">
+          <div class="lang-col">
+            <div class="bubble">
+              <span class="badge">Persian / Farsi</span>
+              <p>فرمول حل معادله درجه دوم: \(x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}\) است.</p>
+            </div>
+          </div>
+          <div class="lang-col">
+            <div class="bubble">
+              <span class="badge">Code &amp; math stay LTR</span>
+              <pre><code>function square(x) {
+  return x * x;
+}</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-mark">RTL Fix for AI Chats</div>
+    </div>
+
+    <script>
+      window.__renderMath = function () {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "\\(", right: "\\)", display: false },
+            { left: "\\[", right: "\\]", display: true },
+          ],
+        });
+      };
+    </script>
+  </body>
+</html>

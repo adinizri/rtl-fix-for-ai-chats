@@ -9,7 +9,7 @@
 
   function setStatus(enabled) {
     status.textContent = enabled
-      ? "On — Hebrew RTL fix active."
+      ? "On — RTL fix active."
       : "Off — pages render normally.";
   }
 

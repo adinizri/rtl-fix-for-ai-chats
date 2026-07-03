@@ -3,6 +3,8 @@
 
 # Build artifacts
 *.zip
+store-assets/tools/node_modules/
+store-assets/screenshots/popup-raw.png
 
 # Editor / OS cruft
 .idea/
