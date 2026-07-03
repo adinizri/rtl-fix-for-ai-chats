@@ -39,6 +39,24 @@
   // Thaana, N'Ko, and the Arabic/Hebrew presentation-form blocks.
   var RTL = /[֐-޿ࢠ-ࣿיִ-﷿ﹰ-﻿]/;
 
+  // A single strong-directional character, RTL or LTR (Latin ranges). Used to
+  // resolve a block's *base* direction the way the Unicode algorithm does:
+  // the first strong char wins; weak/neutral chars (digits, spaces, most
+  // punctuation) are skipped.
+  var STRONG_LTR = /[A-Za-zÀ-ʯͰ-ϿḀ-ỿ]/;
+
+  // True if the first strong-directional character in `text` is RTL — i.e. the
+  // block should read right-to-left. Returns false for empty/LTR-first text.
+  function firstStrongIsRtl(text) {
+    if (!text) return false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (RTL.test(ch)) return true;
+      if (STRONG_LTR.test(ch)) return false;
+    }
+    return false;
+  }
+
   // "Technical" characters that may form part of an LTR run: Latin letters,
   // digits, math symbols, operators, brackets, arrows, Greek, etc.
   var TECH =
@@ -153,6 +171,45 @@
     parent.replaceChild(frag, tn);
   }
 
+  // ----- List marker direction ---------------------------------------
+  // `unicode-bidi: plaintext` fixes a list item's inline text but does NOT
+  // set its `direction`, and the ::marker (bullet/number) follows `direction`
+  // — so RTL list markers stay stuck on the left. `:dir(rtl)` can't help
+  // either: it reflects the HTML dir attribute, not the CSS plaintext value.
+  // So we tag any list whose content reads RTL with `.hebi-rtl`; gated CSS
+  // then flips just that list's direction, moving markers + indent to the
+  // right while plaintext keeps each item's inline content correct.
+  function tagOneList(list) {
+    if (!list || list.nodeType !== 1) return;
+    try {
+      if (list.classList.contains("hebi-rtl")) return; // already decided RTL
+      if (skip(list)) return;
+      if (firstStrongIsRtl(list.textContent || "")) list.classList.add("hebi-rtl");
+    } catch (e) {
+      /* ignore a single bad list */
+    }
+  }
+
+  function tagLists(root) {
+    if (!root) return;
+    var el = root.nodeType === 3 ? root.parentElement : root;
+    if (!el || el.nodeType !== 1) return;
+    try {
+      // the list this node lives in (e.g. an <li> streamed into an existing <ul>)
+      if (el.closest) {
+        var anc = el.closest("ul,ol");
+        if (anc) tagOneList(anc);
+      }
+      // any lists inside the changed subtree
+      if (el.querySelectorAll) {
+        var lists = el.querySelectorAll("ul,ol");
+        for (var i = 0; i < lists.length; i++) tagOneList(lists[i]);
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   function collectInto(root, out) {
     if (!root) return;
     if (root.nodeType === 3) {
@@ -175,14 +232,15 @@
     }
     var roots = queue;
     queue = [];
+    if (!roots.length) return;
     var nodes = [];
     for (var i = 0; i < roots.length; i++) {
       if (roots[i].isConnected !== false) collectInto(roots[i], nodes);
     }
-    if (!nodes.length) return;
 
     if (observer) observer.disconnect(); // don't observe our own writes
     try {
+      for (var r = 0; r < roots.length; r++) tagLists(roots[r]); // RTL list markers
       for (var j = 0; j < nodes.length; j++) {
         try {
           wrapTextNode(nodes[j]);

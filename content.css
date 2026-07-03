@@ -52,7 +52,9 @@ html[data-hebi="on"] th {
    ---------------------------------------------------------------------
    Only blocks that actually RESOLVED to RTL get right alignment, via the
    :dir(rtl) pseudo-class. English paragraphs keep their left alignment.
-   For RTL list items this also places the bullet/number on the right.
+   (Note: with `unicode-bidi: plaintext` most engines already right-align
+   RTL blocks via `text-align: start`; this rule is a belt-and-suspenders
+   for browsers/markup where the HTML directionality is genuinely rtl.)
    ===================================================================== */
 html[data-hebi="on"] p:dir(rtl),
 html[data-hebi="on"] li:dir(rtl),
@@ -69,6 +71,24 @@ html[data-hebi="on"] h6:dir(rtl),
 html[data-hebi="on"] td:dir(rtl),
 html[data-hebi="on"] th:dir(rtl) {
   text-align: right !important;
+}
+
+
+/* =====================================================================
+   2b. RTL LIST MARKERS  (bullets / numbers on the right)
+   ---------------------------------------------------------------------
+   `unicode-bidi: plaintext` fixes an <li>'s inline text but does NOT set
+   its `direction`, and the ::marker follows `direction` — so RTL list
+   markers stay stuck on the left. CSS can't detect content direction
+   here (`:dir()` reflects the HTML dir attribute, not the plaintext CSS
+   value), so content.js tags lists that read RTL with `.hebi-rtl`. Only
+   then do we flip direction, which moves the marker AND the indent to
+   the right; each item's inline content stays correct because the <li>
+   still carries `unicode-bidi: plaintext` from section 1.
+   ===================================================================== */
+html[data-hebi="on"] ul.hebi-rtl,
+html[data-hebi="on"] ol.hebi-rtl {
+  direction: rtl !important;
 }
 
 
