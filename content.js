@@ -164,7 +164,7 @@
   // Raw math/logic wrapper
   // ====================================================================
 
-  function wrapTextNode(tn, force) {
+  function wrapTextNode(tn, force, noTrim) {
     var text = tn.nodeValue;
     if (!text || text.length < 2) return;
     // Only mixed-RTL nodes can misorder LTR runs — unless `force` (a pure-math
@@ -181,16 +181,21 @@
       var e = m.index + m[0].length;
       var run = m[0];
 
-      // 1. Trim edge connectors so they stay in the outer bidi flow.
-      var lead = run.match(LEAD_TRIM);
-      if (lead) {
-        s += lead[0].length;
-        run = run.slice(lead[0].length);
-      }
-      var trail = run.match(TRAIL_TRIM);
-      if (trail) {
-        e -= trail[0].length;
-        run = run.slice(0, run.length - trail[0].length);
+      // 1. Trim edge connectors so they stay in the outer bidi flow — but NOT
+      //    when noTrim (a pure-math line like "= ¬p ∨ (q → ¬r)"): there the
+      //    leading "=" is part of the equation, not a connector to Hebrew, so
+      //    it must stay INSIDE the island or it flips to the far side.
+      if (!noTrim) {
+        var lead = run.match(LEAD_TRIM);
+        if (lead) {
+          s += lead[0].length;
+          run = run.slice(lead[0].length);
+        }
+        var trail = run.match(TRAIL_TRIM);
+        if (trail) {
+          e -= trail[0].length;
+          run = run.slice(0, run.length - trail[0].length);
+        }
       }
 
       // 2. Trim edge brackets whose partner is outside the run, so a bracket
@@ -233,10 +238,11 @@
     parent.replaceChild(frag, tn);
   }
 
-  // Wrap technical runs inside a block that has NO RTL char of its own (a
-  // pure-math block we've decided is RTL context), so its math becomes an
-  // isolated LTR island and `direction: rtl` on the block is safe.
-  function wrapBlockForced(block) {
+  // Wrap technical runs inside an RTL block so its math becomes isolated LTR
+  // islands and `direction: rtl` is safe. `noTrim` is passed for a pure-math
+  // block (no Hebrew) so a whole equation line "= ¬p ∨ (q → ¬r)" stays one
+  // island — its leading "=" is math, not a connector to a Hebrew word.
+  function wrapBlockForced(block, noTrim) {
     var walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
       acceptNode: function (n) {
         var p = n.parentElement;
@@ -249,7 +255,7 @@
     while ((n = walker.nextNode())) list.push(n);
     for (var i = 0; i < list.length; i++) {
       try {
-        wrapTextNode(list[i], true);
+        wrapTextNode(list[i], true, noTrim);
       } catch (e) {
         /* ignore a single bad node */
       }
@@ -331,7 +337,9 @@
         // runs in text nodes that contain no Hebrew of their own (e.g. a
         // "(¬p ∨ q)" fragment sitting between <strong> tags). Left unwrapped,
         // direction:rtl reorders them and a leading ¬ flips to the far side.
-        wrapBlockForced(el);
+        // A pure-math block (no Hebrew) is wrapped without edge-trimming so a
+        // whole equation line keeps its leading "=" inside the island.
+        wrapBlockForced(el, !RTL.test(el.textContent || ""));
         el.classList.add("hebi-rtl");
       }
     } catch (e) {
