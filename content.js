@@ -125,40 +125,18 @@
   // ====================================================================
   // Bracket balancing — never split a bracket pair across an island edge
   // ====================================================================
-  var OPEN = { "(": ")", "[": "]", "{": "}" };
-  var CLOSE = { ")": "(", "]": "[", "}": "{" };
-
-  function leadUnmatched(s) {
-    var c = s.charAt(0);
-    if (CLOSE.hasOwnProperty(c)) return true; // a closer at the start is unmatched
-    if (!OPEN.hasOwnProperty(c)) return false;
-    var want = OPEN[c],
-      d = 0;
-    for (var i = 0; i < s.length; i++) {
-      if (s.charAt(i) === c) d++;
-      else if (s.charAt(i) === want) {
-        d--;
-        if (d === 0) return false; // matched within the run
-      }
-    }
-    return true;
+  // Balance is counted GENERICALLY across bracket types, so a half-open
+  // interval like "(0, 1]" or "[0, 1)" (one opener + one closer of different
+  // types) counts as balanced and is kept whole, while a truly dangling
+  // bracket ("(x=5" or "x=5)") is trimmed off the edge.
+  function isOpenB(c) {
+    return c === "(" || c === "[" || c === "{";
   }
-
-  function trailUnmatched(s) {
-    var c = s.charAt(s.length - 1);
-    if (OPEN.hasOwnProperty(c)) return true; // an opener at the end is unmatched
-    if (!CLOSE.hasOwnProperty(c)) return false;
-    var want = CLOSE[c],
-      d = 0;
-    for (var i = s.length - 1; i >= 0; i--) {
-      if (s.charAt(i) === c) d++;
-      else if (s.charAt(i) === want) {
-        d--;
-        if (d === 0) return false;
-      }
-    }
-    return true;
+  function isCloseB(c) {
+    return c === ")" || c === "]" || c === "}";
   }
+  var HAS_OPEN = /[([{]/;
+  var HAS_CLOSE = /[)\]}]/;
 
   // ====================================================================
   // Raw math/logic wrapper
@@ -198,26 +176,38 @@
         }
       }
 
-      // 2. Trim edge brackets whose partner is outside the run, so a bracket
-      //    pair is never split across the island boundary (which would break
-      //    its mirroring). Balanced runs like "(p ∧ q)" or "¬(∃x: P(x))" are
-      //    left whole.
-      var changed = true;
-      while (changed && run.length) {
-        changed = false;
-        if (leadUnmatched(run)) {
+      // 2. Trim only a genuinely dangling edge bracket (an excess opener/closer
+      //    whose partner is outside the run), counting bracket types together.
+      //    Balanced runs like "(p ∧ q)", "¬(∃x: P(x))" and the half-open
+      //    interval "(0, 1]" are left whole.
+      while (run.length) {
+        var opensN = 0,
+          closesN = 0,
+          k;
+        for (k = 0; k < run.length; k++) {
+          if (isOpenB(run.charAt(k))) opensN++;
+          else if (isCloseB(run.charAt(k))) closesN++;
+        }
+        var f = run.charAt(0),
+          l = run.charAt(run.length - 1);
+        if (isCloseB(f) || (isOpenB(f) && opensN > closesN)) {
           s++;
           run = run.slice(1);
-          changed = true;
+          continue;
         }
-        if (run.length && trailUnmatched(run)) {
+        if (isOpenB(l) || (isCloseB(l) && closesN > opensN)) {
           e--;
           run = run.slice(0, -1);
-          changed = true;
+          continue;
         }
+        break;
       }
 
-      if (s < e && TRIGGER.test(run)) ranges.push([s, e]);
+      // Wrap-worthy if it has a real operator, OR it contains a bracket pair
+      // (so bracketed notation like "(0, 1]" or "f(x)" is isolated and can't be
+      // reversed by the RTL flow).
+      var worthy = TRIGGER.test(run) || (HAS_OPEN.test(run) && HAS_CLOSE.test(run));
+      if (s < e && worthy) ranges.push([s, e]);
       if (RUN.lastIndex === m.index) RUN.lastIndex++; // guard against zero-width
     }
     if (!ranges.length) return;
