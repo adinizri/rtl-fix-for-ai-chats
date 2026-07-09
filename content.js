@@ -260,8 +260,18 @@
   // Block direction resolution
   // ====================================================================
 
-  // First strong char, SKIPPING isolated islands — mirrors what the browser's
-  // `plaintext`/`dir=auto` does. Returns 'rtl' | 'ltr' | 'none'.
+  // A run of 4+ Latin letters = a real word → the block is (partly) prose, not
+  // just math. Math variable names and the common function names (sin/cos/log/
+  // max…) are ≤ 3 letters, so this doesn't fire on equations. A LONE Latin
+  // letter is treated as a math variable, NOT as strong LTR — this is the key
+  // difference from a naive first-strong scan: a Hebrew list item that happens
+  // to start with a variable ("p ו ה-q הוא טאוטולוגיה") still resolves RTL.
+  var WORD = /[A-Za-z]{4,}/;
+
+  // Resolve a block's base direction the way the browser's plaintext does, but
+  // skipping isolated islands AND lone math variables: the first of (a strong
+  // RTL char) or (a real 4+ letter word) wins. Returns 'rtl' | 'ltr' | 'none'
+  // ('none' = purely math/neutral, which then inherits the message direction).
   function resolveDir(el) {
     var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
       acceptNode: function (n) {
@@ -273,11 +283,13 @@
     var n;
     while ((n = walker.nextNode())) {
       var t = n.nodeValue;
-      for (var i = 0; i < t.length; i++) {
-        var c = t.charAt(i);
-        if (RTL.test(c)) return "rtl";
-        if (STRONG_LTR.test(c)) return "ltr";
-      }
+      var rtlIdx = t.search(RTL);
+      var wm = t.match(WORD);
+      var ltrIdx = wm ? wm.index : -1;
+      if (rtlIdx === -1 && ltrIdx === -1) continue; // only variables/neutrals here
+      if (rtlIdx === -1) return "ltr";
+      if (ltrIdx === -1) return "rtl";
+      return rtlIdx < ltrIdx ? "rtl" : "ltr";
     }
     return "none";
   }
@@ -300,23 +312,13 @@
     return "ltr";
   }
 
-  // A run of 4+ Latin letters = a real word → the block is English prose, not
-  // math. (Math variable names and the common function names sin/cos/log/max…
-  // are ≤ 3 letters, so this doesn't catch equations.) Used to keep English
-  // blocks LTR even when they sit next to Hebrew, while still letting genuinely
-  // math-only blocks inherit the surrounding message's RTL direction.
-  var WORD = /[A-Za-z]{4,}/;
-
   function blockDir(el) {
-    var text = el.textContent || "";
-    if (RTL.test(text)) {
-      var d = resolveDir(el);
-      return d === "none" ? contextDir(el) : d;
-    }
-    // No RTL character: English prose stays LTR; pure math/neutral inherits the
-    // surrounding message direction.
-    if (WORD.test(text)) return "ltr";
-    return contextDir(el);
+    // resolveDir handles Hebrew blocks, English-prose blocks, and lone-variable
+    // starts uniformly. Only a purely math/neutral block returns 'none' — then
+    // it inherits the surrounding message's direction.
+    var d = resolveDir(el);
+    if (d === "none") d = contextDir(el);
+    return d;
   }
 
   function tagOneBlock(el) {
