@@ -15,41 +15,44 @@ RTL Fix for AI Chats
 
 **Summary** (132 characters max — shown under the name in search results)
 ```
-Fixes Hebrew/Arabic/Persian RTL text on Claude, ChatGPT, Gemini & more — without breaking math, code, or numbers.
+Fixes right-to-left (Hebrew, Arabic, Persian) text on AI chat sites — without breaking math, code, or numbers.
 ```
-(110 characters)
+(108 characters)
 
 **Description** (long-form, shown on the listing page)
-```
-AI chat answers in Hebrew, Arabic, Persian, or any other right-to-left
-language render backwards by default: text flows the wrong way and
-punctuation lands on the wrong side. Fixing this the obvious way — flipping
-the whole page to direction: rtl — breaks something else: math (KaTeX/
-MathJax) renders scrambled, and code blocks misalign.
 
-RTL Fix for AI Chats solves both problems at once, using three CSS rules
-instead of a blanket direction flip:
+Note: the previous submission was rejected for "keyword spam" — a long list
+of competitor brand names in the description. This version describes the
+functionality instead and keeps the supported-site list in the README/GitHub,
+not the store copy.
+```
+When an AI assistant answers in a right-to-left language such as Hebrew,
+Arabic, or Persian, the text often renders backwards: it flows the wrong
+way and punctuation lands on the wrong side. Fixing this the obvious way —
+flipping the whole page to right-to-left — breaks something else: math
+(KaTeX / MathJax) renders scrambled and code blocks misalign.
+
+This extension solves both problems at once, without ever forcing a blanket
+right-to-left flip:
 
 • Each paragraph, list item, and heading resolves its own reading direction
-  automatically from its first character — exactly like dir="auto" — so
-  Hebrew/Arabic/Persian text goes right-to-left and English stays left-to-
-  right, even within the same conversation.
-• Math and code are locked left-to-right and isolated from the surrounding
-  text, so equations and snippets never get reordered by the right-to-left
-  layout around them.
-• Nothing is ever forced into direction: rtl. That's the one rule that
-  breaks math, so this extension never uses it.
+  automatically from its content — so right-to-left text reads correctly
+  while English stays left-to-right, even in the same answer.
+• Math, equations, and code are locked left-to-right and isolated from the
+  surrounding text, so they are never reordered by the right-to-left layout
+  around them.
+• Right-to-left list bullets, numbers, and blockquote bars move to the
+  correct side.
 
-Works on: Claude, ChatGPT, Gemini, Perplexity, Copilot, DeepSeek, Grok,
-Mistral, Meta AI, Poe, Qwen, HuggingFace Chat, You.com, Phind, Kimi, and
-ChatGLM.
+It runs on major AI chat and assistant websites (the full, current list is
+on the GitHub page). A single on/off switch in the toolbar popup turns it on
+or off instantly, with no page reload.
 
-No tracking, no analytics, no network requests, no data collection of any
-kind — everything runs locally in your browser. CSS does the heavy lifting,
-plus a tiny script that wraps raw math symbols (like ¬, →, ∧) that CSS alone
-can't protect from reordering. One on/off toggle in the toolbar popup applies
-immediately (no page reload). Open source:
-github.com/adinizri/rtl-fix-for-ai-chats
+Privacy: no tracking, no analytics, no network requests, and no data
+collection of any kind. All processing happens locally in your browser to
+apply text-direction styling; nothing is ever sent anywhere.
+
+Open source: github.com/adinizri/rtl-fix-for-ai-chats
 ```
 
 **Category**
