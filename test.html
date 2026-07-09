@@ -358,6 +358,32 @@
       </ul>
     </div>
 
+    <!-- 22. Context direction: RTL message with math-first / math-only blocks -->
+    <div class="card">
+      <small class="tag">22 · RTL message, math-first & math-only blocks (all right)</small>
+      <h2>שלילת ∃</h2>
+      <p>¬(∃x: P(x))</p>
+      <p>"לא נכון שקיים x שמקיים P(x)"</p>
+      <p>מתי זה שקר? כשאף x לא מקיים את P(x):</p>
+      <blockquote
+        style="border-inline-start:4px solid #c7c9d1;padding-inline-start:16px;margin-inline:0;color:#3f3f46"
+      >¬(∃x: P(x)) ≡ ∀x: ¬P(x)</blockquote>
+      <p>דוגמה:</p>
+      <ul>
+        <li>∃x: x² &lt; 0 → "קיים מספר שריבועו שלילי"</li>
+        <li>שלילה: ∀x: x² ≥ 0 → "לכל מספר, ריבועו אי-שלילי"</li>
+      </ul>
+    </div>
+
+    <!-- 23. Bracket pairs must never be split (paren correct to its content) -->
+    <div class="card">
+      <small class="tag">23 · Parentheses match their content (no split pairs)</small>
+      <p>ראה (x=5 שלום) כאן — הסוגריים צריכים לעטוף נכון.</p>
+      <p>וגם (שלום x=5) בכיוון ההפוך.</p>
+      <p>המקרה (x &gt; 0 וגם y) עם תוכן מעורב.</p>
+      <p>נוסחה שלמה (a ≠ 0) נשמרת יחד.</p>
+    </div>
+
     <script>
       var btn = document.getElementById("ab");
       var state = document.getElementById("state");

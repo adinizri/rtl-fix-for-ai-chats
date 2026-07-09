@@ -40,15 +40,21 @@ single case CSS can't reach:
    `.katex, .katex-display, mjx-container, code, pre, kbd, samp`. Isolation
    stops the surrounding RTL flow from reordering them and vice-versa. This is
    what keeps math from "going backwards" (e.g. `x > 0` rendering as `0x>`).
-4. **Raw-text wrapping + RTL list markers (JS)** — AI chats sometimes emit
-   math/logic as plain text (`¬¬r = r`, `(p ∧ q) → ¬r`) with no element around
-   it at all, which no CSS selector can target. A small scanner in
-   `content.js` wraps those runs in `<span class="hebi-ltr">` so principle 3
-   can isolate them. The same scanner also tags blocks that read RTL
-   (lists, blockquotes) with `.hebi-rtl` so their `direction` flips right —
-   `unicode-bidi: plaintext` fixes a block's inline text but can't move a
-   list's `::marker` or a blockquote's inline-start accent bar, and `:dir()`
-   can't detect the CSS-only direction (details below).
+4. **Raw-text wrapping + context-aware block direction (JS)** — the cases CSS
+   can't reach. A small scanner in `content.js`:
+   - Wraps raw math/logic runs (`¬¬r = r`, `(p ∧ q) → ¬r`) that live in a bare
+     text node in `<span class="hebi-ltr">` so principle 3 can isolate them —
+     CSS can't target a substring of a text node. It never splits a bracket
+     pair across the island edge, so parentheses always match their content.
+   - Resolves each block's base direction the way the browser does (first
+     strong character, skipping isolated islands) and, for a Hebrew-free math
+     block, inherits the surrounding message's direction — so a standalone
+     equation or a math-first list still aligns right inside an RTL answer,
+     while genuine English blocks stay left. RTL blocks are tagged `.hebi-rtl`
+     so gated CSS can flip `direction` (moving list markers, blockquote bars,
+     and alignment to the right). `unicode-bidi: plaintext` fixes a block's
+     inline text but never sets its `direction`, and `:dir()` can't see the
+     CSS-only direction — hence the JS (details below).
 
 All the critical rules are marked `!important` so a host site's own stylesheet
 can't silently override the isolation.

@@ -2,17 +2,25 @@
  *
  * Two layers:
  *   1. The html[data-hebi] gate that switches all the CSS on/off.
- *   2. A text scanner (BiDi wrapper) that finds RAW math/logic runs living
- *      in mixed RTL text nodes — the one case pure CSS cannot reach, because
- *      CSS cannot target a substring of a text node — and wraps each run in
- *      <span class="hebi-ltr"> so content.css can isolate it left-to-right.
+ *   2. A DOM scanner that does the things pure CSS can't:
+ *      a. Wrap RAW math/logic runs (e.g. "(p ∧ q) → ¬r", "¬¬r = r") that live
+ *         in a text node with no element of their own, in <span class="hebi-ltr">
+ *         so content.css can isolate them left-to-right. CSS can't target a
+ *         substring of a text node.
+ *      b. Give each block a correct base DIRECTION. `unicode-bidi: plaintext`
+ *         resolves a block's inline text but never sets its `direction`, so RTL
+ *         list markers, blockquote bars, and pure-math blocks in an RTL message
+ *         stay stuck on the LTR side. We resolve each block's direction (the way
+ *         the browser's own algorithm does — skipping isolated islands, and
+ *         falling back to the surrounding message for Hebrew-free math blocks)
+ *         and tag RTL ones `.hebi-rtl` so gated CSS can flip them.
  *
  * Everything is defensive: DOM writes are wrapped in try/catch, the observer
  * is disconnected while we mutate (so we never observe our own writes), we
  * only touch the DOM after ~400 ms of mutation quiet (never mid-stream, so
  * we can't yank a text node out from under the host app's renderer), and
- * the isolation lives in CSS gated on data-hebi (not inline styles), so
- * toggling off makes injected spans inert without unwrapping the DOM.
+ * the isolation/direction live in CSS gated on data-hebi (not inline styles),
+ * so toggling off makes injected spans/classes inert without unwrapping.
  */
 (function () {
   "use strict";
@@ -32,36 +40,28 @@
   apply(true);
 
   // ====================================================================
-  // BiDi text wrapper
+  // Character classes
   // ====================================================================
 
-  // Strong RTL scripts: Hebrew, Arabic (+ supplement/extended), Syriac,
-  // Thaana, N'Ko, and the Arabic/Hebrew presentation-form blocks.
-  var RTL = /[֐-޿ࢠ-ࣿיִ-﷿ﹰ-﻿]/;
+  // Strong RTL scripts, as explicit \u ranges so a stray combining mark in the
+  // source can't corrupt them: U+0590–U+08FF covers Hebrew, Arabic, Syriac,
+  // Thaana, N'Ko, Samaritan, Mandaic and the Arabic supplements/extensions;
+  // then the Hebrew + Arabic presentation-form blocks. Deliberately excludes
+  // the U+2000–U+2FFF math/arrow area (a past bug classified ∃ ∀ → ≡ as RTL).
+  var RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+  var RTL_G = new RegExp(RTL.source, "g");
 
-  // A single strong-directional character, RTL or LTR (Latin ranges). Used to
-  // resolve a block's *base* direction the way the Unicode algorithm does:
-  // the first strong char wins; weak/neutral chars (digits, spaces, most
-  // punctuation) are skipped.
+  // A single strong-directional LTR character: Latin (+ Latin-1/Extended) and
+  // Greek (used for math variables). Weak/neutral chars — digits, spaces, most
+  // punctuation, math operators — match neither RTL nor STRONG_LTR.
   var STRONG_LTR = /[A-Za-zÀ-ʯͰ-ϿḀ-ỿ]/;
 
-  // True if the first strong-directional character in `text` is RTL — i.e. the
-  // block should read right-to-left. Returns false for empty/LTR-first text.
-  function firstStrongIsRtl(text) {
-    if (!text) return false;
-    for (var i = 0; i < text.length; i++) {
-      var ch = text.charAt(i);
-      if (RTL.test(ch)) return true;
-      if (STRONG_LTR.test(ch)) return false;
-    }
-    return false;
-  }
-
   // "Technical" characters that may form part of an LTR run: Latin letters,
-  // digits, math symbols, operators, brackets, arrows, Greek, etc.
+  // digits, math symbols, operators, brackets, arrows, Greek, colon (sets /
+  // logic like "∃x: P(x)"), etc.
   var TECH =
     "A-Za-z0-9" +
-    "\\-.,_=+*/^~|<>()%$#&@" +
+    "\\-.,_=+*/^~|<>()%$#&@:;" +
     "\\[\\]{}" +
     "\\u00A7\\u00AC\\u00B0\\u00B1\\u00B2\\u00B3\\u00B7\\u00B9\\u00D7\\u00F7" +
     "\\u0370-\\u03FF" + // Greek (math variables)
@@ -70,10 +70,9 @@
     "\\u27C0-\\u27FF\\u2980-\\u29FF\\u2A00-\\u2AFF"; // misc math + long arrows + supplemental operators
 
   // A run is only wrapped if it contains at least one of these "trigger"
-  // symbols. This deliberately EXCLUDES brackets, dot, comma, hyphen and
-  // underscore so we never wrap Hebrew parentheticals "(שלום)", Hebrew
-  // hyphenation "ל-6", plain words ("React"), numbers, versions, domains
-  // or emails — the native bidi algorithm already handles those correctly.
+  // symbols. Deliberately EXCLUDES brackets, dot, comma, hyphen, colon and
+  // underscore so we never wrap Hebrew parentheticals "(שלום)", hyphenation
+  // "ל-6", plain words ("React"), numbers, versions, domains or emails.
   var TRIG =
     "=+*/^~|<>" +
     "\\u00AC\\u00A7\\u00B0\\u00B1\\u00B2\\u00B3\\u00B7\\u00D7\\u00F7" +
@@ -82,15 +81,12 @@
     "\\u2190-\\u21FF\\u2200-\\u22FF\\u2300-\\u23FF" +
     "\\u27C0-\\u27FF\\u2980-\\u29FF\\u2A00-\\u2AFF";
 
-  // Binary connectors that must not sit at the EDGE of a wrapped run. Left
-  // OUTSIDE the isolated span they act as plain bidi neutrals, and the
-  // browser places them correctly in the surrounding RTL flow — e.g. in
-  // "הנחה: (p∧q) → נשארת" the arrow must sit between the math and the Hebrew
-  // word after it; wrapped inside the LTR island it would flip to the other
-  // side. Deliberately EXCLUDES unary prefixes ¬ (U+00AC), ± and -, so a
-  // leading negation as in "¬r" is never split off its operand.
+  // Binary connectors / neutrals trimmed off a run's EDGES so they stay in the
+  // outer bidi flow (an arrow between math and a Hebrew word must sit between
+  // them, not inside the LTR island). EXCLUDES unary prefixes ¬ ± -, so "¬r"
+  // keeps its negation.
   var EDGE =
-    "\\s=+*/^~|<>" +
+    "\\s=+*/^~|<>:;" +
     "\\u00D7\\u00F7" +
     "\\u2190-\\u21FF\\u2227\\u2228\\u27F0-\\u27FF";
   var LEAD_TRIM = new RegExp("^[" + EDGE + "]+");
@@ -107,6 +103,10 @@
     "code,pre,kbd,samp,.katex,.katex-display,.katex-mathml,.katex-html," +
     "mjx-container,svg,math,script,style,noscript,textarea,.hebi-ltr";
 
+  // Managed block elements whose base direction we set.
+  var DIR_SEL =
+    "p,li,dd,dt,blockquote,figcaption,h1,h2,h3,h4,h5,h6,td,th,ul,ol";
+
   var observer = null;
   var started = false;
   var queue = [];
@@ -122,10 +122,54 @@
     }
   }
 
-  function wrapTextNode(tn) {
+  // ====================================================================
+  // Bracket balancing — never split a bracket pair across an island edge
+  // ====================================================================
+  var OPEN = { "(": ")", "[": "]", "{": "}" };
+  var CLOSE = { ")": "(", "]": "[", "}": "{" };
+
+  function leadUnmatched(s) {
+    var c = s.charAt(0);
+    if (CLOSE.hasOwnProperty(c)) return true; // a closer at the start is unmatched
+    if (!OPEN.hasOwnProperty(c)) return false;
+    var want = OPEN[c],
+      d = 0;
+    for (var i = 0; i < s.length; i++) {
+      if (s.charAt(i) === c) d++;
+      else if (s.charAt(i) === want) {
+        d--;
+        if (d === 0) return false; // matched within the run
+      }
+    }
+    return true;
+  }
+
+  function trailUnmatched(s) {
+    var c = s.charAt(s.length - 1);
+    if (OPEN.hasOwnProperty(c)) return true; // an opener at the end is unmatched
+    if (!CLOSE.hasOwnProperty(c)) return false;
+    var want = CLOSE[c],
+      d = 0;
+    for (var i = s.length - 1; i >= 0; i--) {
+      if (s.charAt(i) === c) d++;
+      else if (s.charAt(i) === want) {
+        d--;
+        if (d === 0) return false;
+      }
+    }
+    return true;
+  }
+
+  // ====================================================================
+  // Raw math/logic wrapper
+  // ====================================================================
+
+  function wrapTextNode(tn, force) {
     var text = tn.nodeValue;
     if (!text || text.length < 2) return;
-    if (!RTL.test(text)) return; // only mixed RTL nodes can misorder LTR runs
+    // Only mixed-RTL nodes can misorder LTR runs — unless `force` (a pure-math
+    // block that we've already decided belongs to an RTL message).
+    if (!force && !RTL.test(text)) return;
     var parent = tn.parentNode;
     if (!parent || skip(tn.parentElement)) return;
 
@@ -136,10 +180,8 @@
       var s = m.index;
       var e = m.index + m[0].length;
       var run = m[0];
-      // Trim edge connectors (see EDGE above) so they stay in the outer
-      // bidi flow; then re-check the trigger — a run that was ONLY a lone
-      // arrow between two Hebrew words disappears entirely, which is
-      // correct (the native algorithm already places it fine).
+
+      // 1. Trim edge connectors so they stay in the outer bidi flow.
       var lead = run.match(LEAD_TRIM);
       if (lead) {
         s += lead[0].length;
@@ -150,6 +192,26 @@
         e -= trail[0].length;
         run = run.slice(0, run.length - trail[0].length);
       }
+
+      // 2. Trim edge brackets whose partner is outside the run, so a bracket
+      //    pair is never split across the island boundary (which would break
+      //    its mirroring). Balanced runs like "(p ∧ q)" or "¬(∃x: P(x))" are
+      //    left whole.
+      var changed = true;
+      while (changed && run.length) {
+        changed = false;
+        if (leadUnmatched(run)) {
+          s++;
+          run = run.slice(1);
+          changed = true;
+        }
+        if (run.length && trailUnmatched(run)) {
+          e--;
+          run = run.slice(0, -1);
+          changed = true;
+        }
+      }
+
       if (s < e && TRIGGER.test(run)) ranges.push([s, e]);
       if (RUN.lastIndex === m.index) RUN.lastIndex++; // guard against zero-width
     }
@@ -158,37 +220,115 @@
     var frag = document.createDocumentFragment();
     var cursor = 0;
     for (var i = 0; i < ranges.length; i++) {
-      var s = ranges[i][0],
-        e = ranges[i][1];
-      if (s > cursor) frag.appendChild(document.createTextNode(text.slice(cursor, s)));
+      var rs = ranges[i][0],
+        re = ranges[i][1];
+      if (rs > cursor) frag.appendChild(document.createTextNode(text.slice(cursor, rs)));
       var span = document.createElement("span");
       span.className = "hebi-ltr";
-      span.textContent = text.slice(s, e);
+      span.textContent = text.slice(rs, re);
       frag.appendChild(span);
-      cursor = e;
+      cursor = re;
     }
     if (cursor < text.length) frag.appendChild(document.createTextNode(text.slice(cursor)));
     parent.replaceChild(frag, tn);
   }
 
-  // ----- Block-level direction ---------------------------------------
-  // `unicode-bidi: plaintext` fixes a block's inline text but does NOT set its
-  // `direction`. Anything that follows `direction` therefore stays stuck on
-  // the LTR side for RTL content: list ::markers (bullets/numbers), a
-  // blockquote's inline-start accent bar and padding, and start-based
-  // alignment when a host site pins it. `:dir(rtl)` can't help — it reflects
-  // the HTML dir attribute, not the CSS plaintext value, so it never matches.
-  // So we tag any such block whose content reads RTL with `.hebi-rtl`; gated
-  // CSS then flips just that block's direction, while plaintext keeps its
-  // inline content correct.
-  var DIR_SEL = "ul,ol,blockquote";
+  // Wrap technical runs inside a block that has NO RTL char of its own (a
+  // pure-math block we've decided is RTL context), so its math becomes an
+  // isolated LTR island and `direction: rtl` on the block is safe.
+  function wrapBlockForced(block) {
+    var walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        var p = n.parentElement;
+        if (!p || (p.closest && p.closest(SKIP_SEL))) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    var list = [],
+      n;
+    while ((n = walker.nextNode())) list.push(n);
+    for (var i = 0; i < list.length; i++) {
+      try {
+        wrapTextNode(list[i], true);
+      } catch (e) {
+        /* ignore a single bad node */
+      }
+    }
+  }
+
+  // ====================================================================
+  // Block direction resolution
+  // ====================================================================
+
+  // First strong char, SKIPPING isolated islands — mirrors what the browser's
+  // `plaintext`/`dir=auto` does. Returns 'rtl' | 'ltr' | 'none'.
+  function resolveDir(el) {
+    var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        var p = n.parentElement;
+        if (p && p.closest && p.closest(SKIP_SEL)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    var n;
+    while ((n = walker.nextNode())) {
+      var t = n.nodeValue;
+      for (var i = 0; i < t.length; i++) {
+        var c = t.charAt(i);
+        if (RTL.test(c)) return "rtl";
+        if (STRONG_LTR.test(c)) return "ltr";
+      }
+    }
+    return "none";
+  }
+
+  // For a block with no strong direction of its own (pure math / neutral),
+  // inherit the surrounding MESSAGE's direction: climb a few levels and look
+  // for substantial RTL text. Bounded + boundary-stopped so a neighbouring
+  // message can't leak its direction in. Math never adds RTL characters, so
+  // this is not fooled by math-heavy Hebrew answers.
+  var CTX_BOUNDARY = /^(BODY|MAIN|ARTICLE|SECTION|NAV|HEADER|FOOTER|FORM|HTML)$/;
+  function contextDir(el) {
+    var node = el.parentElement,
+      hops = 0;
+    while (node && hops < 3 && !CTX_BOUNDARY.test(node.tagName)) {
+      var mm = (node.textContent || "").match(RTL_G);
+      if (mm && mm.length >= 4) return "rtl";
+      node = node.parentElement;
+      hops++;
+    }
+    return "ltr";
+  }
+
+  // A run of 4+ Latin letters = a real word → the block is English prose, not
+  // math. (Math variable names and the common function names sin/cos/log/max…
+  // are ≤ 3 letters, so this doesn't catch equations.) Used to keep English
+  // blocks LTR even when they sit next to Hebrew, while still letting genuinely
+  // math-only blocks inherit the surrounding message's RTL direction.
+  var WORD = /[A-Za-z]{4,}/;
+
+  function blockDir(el) {
+    var text = el.textContent || "";
+    if (RTL.test(text)) {
+      var d = resolveDir(el);
+      return d === "none" ? contextDir(el) : d;
+    }
+    // No RTL character: English prose stays LTR; pure math/neutral inherits the
+    // surrounding message direction.
+    if (WORD.test(text)) return "ltr";
+    return contextDir(el);
+  }
 
   function tagOneBlock(el) {
     if (!el || el.nodeType !== 1) return;
     try {
       if (el.classList.contains("hebi-rtl")) return; // already decided RTL
       if (skip(el)) return;
-      if (firstStrongIsRtl(el.textContent || "")) el.classList.add("hebi-rtl");
+      if (blockDir(el) === "rtl") {
+        // Pure-math RTL block: isolate its math first so direction:rtl is safe.
+        if (!RTL.test(el.textContent || "")) wrapBlockForced(el);
+        el.classList.add("hebi-rtl");
+      }
     } catch (e) {
       /* ignore a single bad block */
     }
@@ -199,12 +339,10 @@
     var el = root.nodeType === 3 ? root.parentElement : root;
     if (!el || el.nodeType !== 1) return;
     try {
-      // the block this node lives in (e.g. an <li> streamed into a live <ul>)
       if (el.closest) {
         var anc = el.closest(DIR_SEL);
         if (anc) tagOneBlock(anc);
       }
-      // any managed blocks inside the changed subtree
       if (el.querySelectorAll) {
         var blocks = el.querySelectorAll(DIR_SEL);
         for (var i = 0; i < blocks.length; i++) tagOneBlock(blocks[i]);
@@ -213,6 +351,10 @@
       /* ignore */
     }
   }
+
+  // ====================================================================
+  // Collection + scheduling
+  // ====================================================================
 
   function collectInto(root, out) {
     if (!root) return;
@@ -244,14 +386,17 @@
 
     if (observer) observer.disconnect(); // don't observe our own writes
     try {
-      for (var r = 0; r < roots.length; r++) tagBlocks(roots[r]); // RTL block direction
+      // 1. Wrap raw math runs in Hebrew-containing nodes (creates the islands
+      //    that block-direction resolution below then skips).
       for (var j = 0; j < nodes.length; j++) {
         try {
-          wrapTextNode(nodes[j]);
+          wrapTextNode(nodes[j], false);
         } catch (e) {
           /* ignore a single bad node */
         }
       }
+      // 2. Resolve + tag block direction (may force-wrap pure-math RTL blocks).
+      for (var r = 0; r < roots.length; r++) tagBlocks(roots[r]);
     } finally {
       if (observer && enabled) reconnect();
     }
@@ -260,10 +405,7 @@
   function schedule() {
     // Pure trailing debounce: process only after ~400 ms with no further
     // mutations. NEVER force a flush mid-stream — replacing a text node the
-    // host app (React) is actively appending to can break its reconciler
-    // (the classic translate-extension-crashes-the-page failure). The cost
-    // is that raw math in a long streamed answer snaps into place at the
-    // next pause instead of progressively — a safe trade.
+    // host app (React) is actively appending to can break its reconciler.
     if (timer) clearTimeout(timer);
     timer = setTimeout(process, 400);
   }
@@ -308,8 +450,8 @@
       observer.disconnect();
       observer = null;
     }
-    // Injected spans are left in place but become inert (their isolation is
-    // gated on html[data-hebi="on"], which is now off).
+    // Injected spans/classes are left in place but become inert (their effect
+    // is gated on html[data-hebi="on"], which is now off).
   }
 
   function setEnabled(on) {

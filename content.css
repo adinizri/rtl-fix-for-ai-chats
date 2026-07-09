@@ -90,13 +90,35 @@ html[data-hebi="on"] th:dir(rtl) {
    plaintext` from section 1. text-align:right is a belt-and-suspenders
    for sites that explicitly pin the alignment left.
    ===================================================================== */
+html[data-hebi="on"] p.hebi-rtl,
+html[data-hebi="on"] li.hebi-rtl,
+html[data-hebi="on"] dd.hebi-rtl,
+html[data-hebi="on"] dt.hebi-rtl,
+html[data-hebi="on"] blockquote.hebi-rtl,
+html[data-hebi="on"] figcaption.hebi-rtl,
+html[data-hebi="on"] h1.hebi-rtl,
+html[data-hebi="on"] h2.hebi-rtl,
+html[data-hebi="on"] h3.hebi-rtl,
+html[data-hebi="on"] h4.hebi-rtl,
+html[data-hebi="on"] h5.hebi-rtl,
+html[data-hebi="on"] h6.hebi-rtl,
+html[data-hebi="on"] td.hebi-rtl,
+html[data-hebi="on"] th.hebi-rtl,
 html[data-hebi="on"] ul.hebi-rtl,
-html[data-hebi="on"] ol.hebi-rtl,
-html[data-hebi="on"] blockquote.hebi-rtl {
+html[data-hebi="on"] ol.hebi-rtl {
+  /* isolate (not plaintext) so the base direction comes from `direction:rtl`
+     rather than being re-resolved from content — this is what makes a
+     pure-math block align right instead of left. The block's math is already
+     isolated in .hebi-ltr / .katex islands, so it still reads left-to-right. */
   direction: rtl !important;
-}
-html[data-hebi="on"] blockquote.hebi-rtl {
+  unicode-bidi: isolate !important;
   text-align: right !important;
+}
+
+/* Display math stays centered even inside an RTL block (overrides the
+   text-align:right above via higher specificity on the child element). */
+html[data-hebi="on"] .hebi-rtl .katex-display {
+  text-align: center !important;
 }
 
 
