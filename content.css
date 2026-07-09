@@ -115,9 +115,34 @@ html[data-hebi="on"] ol.hebi-rtl {
   text-align: right !important;
 }
 
+/* Pure-math blocks that are split across inline tags (e.g. an equation with
+   per-variable <strong>: "= ¬r ∨ ¬q ∨ ¬p") can't be captured in a single LTR
+   island, so `direction: rtl` would reorder the pieces. Keep them LTR-based —
+   the fragments read left-to-right in order — but aligned to the right for the
+   RTL context. (`isolate` overrides the section-1 plaintext.) */
+html[data-hebi="on"] p.hebi-mr,
+html[data-hebi="on"] li.hebi-mr,
+html[data-hebi="on"] dd.hebi-mr,
+html[data-hebi="on"] dt.hebi-mr,
+html[data-hebi="on"] blockquote.hebi-mr,
+html[data-hebi="on"] figcaption.hebi-mr,
+html[data-hebi="on"] h1.hebi-mr,
+html[data-hebi="on"] h2.hebi-mr,
+html[data-hebi="on"] h3.hebi-mr,
+html[data-hebi="on"] h4.hebi-mr,
+html[data-hebi="on"] h5.hebi-mr,
+html[data-hebi="on"] h6.hebi-mr,
+html[data-hebi="on"] td.hebi-mr,
+html[data-hebi="on"] th.hebi-mr {
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+  text-align: right !important;
+}
+
 /* Display math stays centered even inside an RTL block (overrides the
    text-align:right above via higher specificity on the child element). */
-html[data-hebi="on"] .hebi-rtl .katex-display {
+html[data-hebi="on"] .hebi-rtl .katex-display,
+html[data-hebi="on"] .hebi-mr .katex-display {
   text-align: center !important;
 }
 

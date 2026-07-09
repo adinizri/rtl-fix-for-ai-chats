@@ -327,19 +327,46 @@
     return d;
   }
 
+  // Does the block's text live in more than one text node (split by inline
+  // elements like <strong>)? A pure-math equation split this way can't be
+  // captured in a single island, so direction:rtl would reorder the pieces.
+  function isFragmented(el) {
+    var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        var p = n.parentElement;
+        if (p && p.closest && p.closest(SKIP_SEL)) return NodeFilter.FILTER_REJECT;
+        return n.nodeValue && n.nodeValue.trim()
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_SKIP;
+      },
+    });
+    var count = 0;
+    while (walker.nextNode()) {
+      if (++count > 1) return true;
+    }
+    return false;
+  }
+
   function tagOneBlock(el) {
     if (!el || el.nodeType !== 1) return;
     try {
-      if (el.classList.contains("hebi-rtl")) return; // already decided RTL
+      if (el.classList.contains("hebi-rtl") || el.classList.contains("hebi-mr")) return;
       if (skip(el)) return;
-      if (blockDir(el) === "rtl") {
-        // Isolate EVERY math run in the block before flipping it to rtl — even
-        // runs in text nodes that contain no Hebrew of their own (e.g. a
-        // "(¬p ∨ q)" fragment sitting between <strong> tags). Left unwrapped,
-        // direction:rtl reorders them and a leading ¬ flips to the far side.
-        // A pure-math block (no Hebrew) is wrapped without edge-trimming so a
-        // whole equation line keeps its leading "=" inside the island.
-        wrapBlockForced(el, !RTL.test(el.textContent || ""));
+      if (blockDir(el) !== "rtl") return;
+
+      if (RTL.test(el.textContent || "")) {
+        // Hebrew block: isolate its inline math fragments, then flip to rtl.
+        wrapBlockForced(el, false);
+        el.classList.add("hebi-rtl");
+      } else if (isFragmented(el)) {
+        // Pure-math equation split across <strong>/etc. — can't be one island,
+        // so keeping it rtl would reorder the pieces. Keep it LTR-based (reads
+        // in order) but right-aligned.
+        el.classList.add("hebi-mr");
+      } else {
+        // Pure-math single run: wrap whole (leading "=" kept) and flip to rtl,
+        // so a math-only blockquote/list still gets its bar/markers on the right.
+        wrapBlockForced(el, true);
         el.classList.add("hebi-rtl");
       }
     } catch (e) {
