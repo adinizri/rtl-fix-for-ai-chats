@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RTL Fix for AI Chats",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Fixes right-to-left text (Hebrew, Arabic, Persian…) on AI chats while keeping math, code, and numbers left-to-right.",
   "permissions": ["storage"],
   "icons": {

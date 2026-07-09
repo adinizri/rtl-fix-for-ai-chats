@@ -396,6 +396,17 @@
       </ol>
     </div>
 
+    <!-- 25. Bold tags split a Hebrew para so a math fragment sits in a
+         Hebrew-free text node — it must still be isolated (¬ before p). -->
+    <div class="card">
+      <small class="tag">25 · Math fragment between &lt;strong&gt; tags stays LTR (¬ before p)</small>
+      <p>
+        <strong>כלל הזהב:</strong> p → q <strong>תמיד</strong> אומר
+        "<strong>לא p, או q</strong>" (¬p ∨ q).
+      </p>
+      <p>וזהה למה שקורה עם <strong>¬(p ∧ q)</strong> לפי דה־מורגן.</p>
+    </div>
+
     <script>
       var btn = document.getElementById("ab");
       var state = document.getElementById("state");

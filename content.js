@@ -327,8 +327,11 @@
       if (el.classList.contains("hebi-rtl")) return; // already decided RTL
       if (skip(el)) return;
       if (blockDir(el) === "rtl") {
-        // Pure-math RTL block: isolate its math first so direction:rtl is safe.
-        if (!RTL.test(el.textContent || "")) wrapBlockForced(el);
+        // Isolate EVERY math run in the block before flipping it to rtl — even
+        // runs in text nodes that contain no Hebrew of their own (e.g. a
+        // "(¬p ∨ q)" fragment sitting between <strong> tags). Left unwrapped,
+        // direction:rtl reorders them and a leading ¬ flips to the far side.
+        wrapBlockForced(el);
         el.classList.add("hebi-rtl");
       }
     } catch (e) {
