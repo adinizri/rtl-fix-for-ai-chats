@@ -46,6 +46,11 @@ single case CSS can't reach:
      text node in `<span class="hebi-ltr">` so principle 3 can isolate them —
      CSS can't target a substring of a text node. It never splits a bracket
      pair across the island edge, so parentheses always match their content.
+     This includes Unicode "Mathematical Alphanumeric Symbols" (𝑎𝑏 𝐴𝐵 —
+     U+1D400–U+1D7FF), which some AI chats emit instead of real LaTeX; a run
+     containing a set-builder `{` gets a line break before it (unless a space
+     already separates it from the preceding text) since `{...}` reads poorly
+     crammed against Hebrew with no gap.
    - Resolves each block's base direction the way the browser does (first
      strong character, skipping isolated islands) and, for a Hebrew-free math
      block, inherits the surrounding message's direction — so a standalone

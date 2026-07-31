@@ -48,8 +48,8 @@
   // Thaana, N'Ko, Samaritan, Mandaic and the Arabic supplements/extensions;
   // then the Hebrew + Arabic presentation-form blocks. Deliberately excludes
   // the U+2000–U+2FFF math/arrow area (a past bug classified ∃ ∀ → ≡ as RTL).
-  var RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
-  var RTL_G = new RegExp(RTL.source, "g");
+  var RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
+  var RTL_G = new RegExp(RTL.source, "gu");
 
   // A single strong-directional LTR character: Latin (+ Latin-1/Extended) and
   // Greek (used for math variables). Weak/neutral chars — digits, spaces, most
@@ -67,7 +67,8 @@
     "\\u0370-\\u03FF" + // Greek (math variables)
     "\\u2032-\\u2037\\u2070-\\u209F\\u2100-\\u214F" + // primes, super/subs, letterlike (ℝ ℤ …)
     "\\u2190-\\u21FF\\u2200-\\u22FF\\u2300-\\u23FF" + // arrows, math operators, misc technical
-    "\\u27C0-\\u27FF\\u2980-\\u29FF\\u2A00-\\u2AFF"; // misc math + long arrows + supplemental operators
+    "\\u27C0-\\u27FF\\u2980-\\u29FF\\u2A00-\\u2AFF" + // misc math + long arrows + supplemental operators
+    "\\u{1D400}-\\u{1D7FF}"; // Mathematical Alphanumeric Symbols (𝑎𝑏 𝐴𝐵 — styled math-italic/bold/script/double-struck vars AI chats emit instead of real LaTeX)
 
   // A run is only wrapped if it contains at least one of these "trigger"
   // symbols. Deliberately EXCLUDES brackets, dot, comma, hyphen, colon and
@@ -94,7 +95,7 @@
 
   // A maximal run of TECH characters, allowing single internal spaces so
   // "(p ∧ q) → ¬r" is captured as ONE run rather than several.
-  var RUN = new RegExp("[" + TECH + "](?:[ \\t\\u00A0]*[" + TECH + "])*", "g");
+  var RUN = new RegExp("[" + TECH + "](?:[ \\t\\u00A0]*[" + TECH + "])*", "gu");
   var TRIGGER = new RegExp("[" + TRIG + "]");
 
   // Never descend into these — already-isolated islands, editors, or content
@@ -218,9 +219,20 @@
       var rs = ranges[i][0],
         re = ranges[i][1];
       if (rs > cursor) frag.appendChild(document.createTextNode(text.slice(cursor, rs)));
+      var runText = text.slice(rs, re);
+      // Set-builder notation ("{...}") reads poorly when it's crammed directly
+      // against the preceding Hebrew with no space — break it onto its own
+      // line. If a space already separates it, that gap is enough; leave it.
+      if (
+        runText.indexOf("{") !== -1 &&
+        text.slice(0, rs).search(/\S/) !== -1 &&
+        !/\s/.test(text.charAt(rs - 1))
+      ) {
+        frag.appendChild(document.createElement("br"));
+      }
       var span = document.createElement("span");
       span.className = "hebi-ltr";
-      span.textContent = text.slice(rs, re);
+      span.textContent = runText;
       frag.appendChild(span);
       cursor = re;
     }

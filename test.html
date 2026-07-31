@@ -433,6 +433,17 @@
       <p>הקבוצה {x | x > 0} וגם הפונקציה f(x) בסדר.</p>
     </div>
 
+    <!-- 29. Raw Unicode MATH ALPHANUMERIC letters (𝑎,𝑏,𝐴,𝐵 — U+1D400 block),
+         not LaTeX, not <code> — as pasted from a real AI chat (bug repro). -->
+    <div class="card">
+      <small class="tag">29 · Raw Unicode math-italic letters (𝑎,𝑏,𝐴,𝐵) — bug repro</small>
+      <p>
+        זוג סדור ⟨𝑎,𝑏⟩ - סדר משנה (⟨𝑎,𝑏⟩≠⟨𝑏,𝑎⟩), שונה מקבוצה. מכפלה קרטזית
+        𝐴×𝐵={⟨𝑎,𝑏⟩∣𝑎∈𝐴∧𝑏∈𝐵}, לא חילופית, ∣𝐴×𝐵∣=∣𝐴∣⋅∣𝐵∣.
+      </p>
+      <p>הקבוצה מוגדרת כך:{x∣x>0}, ללא רווח לפני הסוגר.</p>
+    </div>
+
     <script>
       var btn = document.getElementById("ab");
       var state = document.getElementById("state");
@@ -450,7 +461,7 @@
          the CSS. */
       window.addEventListener("load", function () {
         var s = document.createElement("script");
-        s.src = "content.js";
+        s.src = "content.js?_devcachebust=" + Math.random();
         document.body.appendChild(s);
       });
     </script>
