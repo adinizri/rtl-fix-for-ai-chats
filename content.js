@@ -139,6 +139,34 @@
   var HAS_OPEN = /[([{]/;
   var HAS_CLOSE = /[)\]}]/;
 
+  // All bracket types (incl. angle brackets ⟨⟩ for tuples) treated together,
+  // just to find TOP-LEVEL commas below — separate from isOpenB/isCloseB
+  // above, which intentionally stay ASCII-only for the edge-trim logic.
+  var OPEN_CHARS = "([{⟨";
+  var CLOSE_CHARS = ")]}⟩";
+
+  // A run like "R1={⟨1,2⟩,⟨2,3⟩}, R2={⟨2,1⟩,⟨3,1⟩}" is one continuous TECH
+  // run (bridged by the ", " between the two clauses), but it is really TWO
+  // independent statements. Left as a single island, the browser may still
+  // line-wrap in the middle of one clause when the island doesn't fit one
+  // line — visually stranding a label like "R2 =" apart from its own value.
+  // Splitting at commas that sit OUTSIDE any bracket (depth 0) keeps each
+  // "label = {value}" clause as its own atomic island, so a wrap can only
+  // ever land between clauses, never inside one. Commas inside a bracket
+  // pair (a tuple "⟨1,2⟩" or a set "{1,2,3}") are depth>0 and never split.
+  function topLevelCommaSplits(str) {
+    var depth = 0,
+      idxs = [];
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charAt(i);
+      if (OPEN_CHARS.indexOf(c) !== -1) depth++;
+      else if (CLOSE_CHARS.indexOf(c) !== -1) {
+        if (depth > 0) depth--;
+      } else if (c === "," && depth === 0) idxs.push(i);
+    }
+    return idxs;
+  }
+
   // ====================================================================
   // Raw math/logic wrapper
   // ====================================================================
@@ -213,6 +241,27 @@
     }
     if (!ranges.length) return;
 
+    // Set-builder notation ("{...}") reads poorly when it's crammed directly
+    // against whatever precedes it with no space — break it onto its own
+    // line. If a space already separates it, that gap is enough; leave it.
+    // `absStart` is this segment's start offset in the FULL text, so the
+    // "what precedes it" check always looks at the real preceding character
+    // (the outer Hebrew, or the separator before a split-off clause).
+    function appendLtrSegment(frag, absStart, seg) {
+      if (!seg) return;
+      if (
+        seg.indexOf("{") !== -1 &&
+        text.slice(0, absStart).search(/\S/) !== -1 &&
+        !/\s/.test(text.charAt(absStart - 1))
+      ) {
+        frag.appendChild(document.createElement("br"));
+      }
+      var span = document.createElement("span");
+      span.className = "hebi-ltr";
+      span.textContent = seg;
+      frag.appendChild(span);
+    }
+
     var frag = document.createDocumentFragment();
     var cursor = 0;
     for (var i = 0; i < ranges.length; i++) {
@@ -220,20 +269,26 @@
         re = ranges[i][1];
       if (rs > cursor) frag.appendChild(document.createTextNode(text.slice(cursor, rs)));
       var runText = text.slice(rs, re);
-      // Set-builder notation ("{...}") reads poorly when it's crammed directly
-      // against the preceding Hebrew with no space — break it onto its own
-      // line. If a space already separates it, that gap is enough; leave it.
-      if (
-        runText.indexOf("{") !== -1 &&
-        text.slice(0, rs).search(/\S/) !== -1 &&
-        !/\s/.test(text.charAt(rs - 1))
-      ) {
-        frag.appendChild(document.createElement("br"));
+
+      // Split into independent clauses at any top-level comma so a chain
+      // like "R1={…}, R2={…}" can never wrap mid-clause (see
+      // topLevelCommaSplits above). Each clause keeps its own preceding-space
+      // check via absStart, and the comma+space separator stays in the
+      // outer (non-isolated) flow between the two islands.
+      var commaIdxs = topLevelCommaSplits(runText);
+      var segStart = 0,
+        absStart = rs;
+      for (var ci = 0; ci <= commaIdxs.length; ci++) {
+        var segEnd = ci < commaIdxs.length ? commaIdxs[ci] : runText.length;
+        appendLtrSegment(frag, absStart, runText.slice(segStart, segEnd));
+        if (ci < commaIdxs.length) {
+          var sepMatch = /^,[ \t\u00A0]*/.exec(runText.slice(segEnd));
+          var sepText = sepMatch ? sepMatch[0] : ",";
+          frag.appendChild(document.createTextNode(sepText));
+          segStart = segEnd + sepText.length;
+          absStart = rs + segStart;
+        }
       }
-      var span = document.createElement("span");
-      span.className = "hebi-ltr";
-      span.textContent = runText;
-      frag.appendChild(span);
       cursor = re;
     }
     if (cursor < text.length) frag.appendChild(document.createTextNode(text.slice(cursor)));

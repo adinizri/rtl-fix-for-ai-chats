@@ -444,6 +444,17 @@
       <p>הקבוצה מוגדרת כך:{x∣x>0}, ללא רווח לפני הסוגר.</p>
     </div>
 
+    <!-- 30. Multiple set assignments chained with ", " in one sentence
+         (bug repro): R1={...}, R2={...} risk merging into one LTR island,
+         making it look like R1 = R2 when the browser line-wraps mid-run. -->
+    <div class="card">
+      <small class="tag">30 · Chained assignments (R1={…}, R2={…}) — bug repro</small>
+      <p>
+        תרגיל קצר לפני שממשיכים לתכונות: יהי 𝐴=𝐵=𝐶={1,2,3}.
+        𝑅1={⟨1,2⟩,⟨2,3⟩}, 𝑅2={⟨2,1⟩,⟨3,1⟩}.
+      </p>
+    </div>
+
     <script>
       var btn = document.getElementById("ab");
       var state = document.getElementById("state");
