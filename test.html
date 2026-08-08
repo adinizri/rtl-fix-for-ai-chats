@@ -473,6 +473,19 @@
       </p>
     </div>
 
+    <!-- 33. Bug repro: a dangling closing paren followed by trailing TECH
+         content (comma) in the same run — "(מ-ℝ ל-ℝ), מה" — must not sweep
+         the ")" and "," into the "-ℝ" island; the "(" / ")" pair belongs to
+         the Hebrew flow so it can bidi-mirror correctly. -->
+    <div class="card">
+      <small class="tag">33 · Bug repro — parenthetical spanning two math runs ((מ-ℝ ל-ℝ))</small>
+      <p>
+        שאלת בדיקה בשבילך: נסה לנסח בעצמך — אם רצית להוכיח ש-f(x) = 2x היא
+        חח"ע (מ-ℝ ל-ℝ), מה יהיה ה-P וה-Q שהיית מניח/מוכיח? נסה לכתוב את זה
+        במילים שלך.
+      </p>
+    </div>
+
     <script>
       var btn = document.getElementById("ab");
       var state = document.getElementById("state");

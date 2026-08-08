@@ -335,31 +335,54 @@
         }
       }
 
-      // 2. Trim only a genuinely dangling edge bracket (an excess opener/closer
+      // 2. Trim only a genuinely dangling bracket (an excess opener/closer
       //    whose partner is outside the run), counting bracket types together.
       //    Balanced runs like "(p ∧ q)", "¬(∃x: P(x))" and the half-open
       //    interval "(0, 1]" are left whole.
-      while (run.length) {
-        var opensN = 0,
-          closesN = 0,
-          k;
-        for (k = 0; k < run.length; k++) {
-          if (isOpenB(run.charAt(k))) opensN++;
-          else if (isCloseB(run.charAt(k))) closesN++;
+      //
+      //    A forward scan finds the first excess (unmatched) closer, and a
+      //    backward scan finds the last excess (unmatched) opener; the run is
+      //    truncated there. This is deliberately NOT "check only the run's
+      //    first/last character" — a dangling closer can have trailing
+      //    content of its own after it within the same run (e.g. a Hebrew
+      //    parenthetical "(מ-ℝ ל-ℝ), מה..." captures "-ℝ)," as one run: the
+      //    ")" is dangling — its "(" is outside, left earlier — but a
+      //    single-character edge check misses it because the trailing ","
+      //    is what's actually at the run's last position). Scanning the
+      //    whole run for the unmatched position catches this regardless of
+      //    what trails it.
+      var bal = 0,
+        firstUnmatchedClose = -1,
+        k;
+      for (k = 0; k < run.length; k++) {
+        if (isOpenB(run.charAt(k))) bal++;
+        else if (isCloseB(run.charAt(k))) {
+          bal--;
+          if (bal < 0) {
+            firstUnmatchedClose = k;
+            break;
+          }
         }
-        var f = run.charAt(0),
-          l = run.charAt(run.length - 1);
-        if (isCloseB(f) || (isOpenB(f) && opensN > closesN)) {
-          s++;
-          run = run.slice(1);
-          continue;
+      }
+      if (firstUnmatchedClose !== -1) {
+        e -= run.length - firstUnmatchedClose;
+        run = run.slice(0, firstUnmatchedClose);
+      }
+      bal = 0;
+      var lastUnmatchedOpen = -1;
+      for (k = run.length - 1; k >= 0; k--) {
+        if (isCloseB(run.charAt(k))) bal++;
+        else if (isOpenB(run.charAt(k))) {
+          if (bal > 0) bal--;
+          else {
+            lastUnmatchedOpen = k;
+            break;
+          }
         }
-        if (isOpenB(l) || (isCloseB(l) && closesN > opensN)) {
-          e--;
-          run = run.slice(0, -1);
-          continue;
-        }
-        break;
+      }
+      if (lastUnmatchedOpen !== -1) {
+        s += lastUnmatchedOpen + 1;
+        run = run.slice(lastUnmatchedOpen + 1);
       }
 
       // Wrap-worthy if it has a real operator, OR it contains a bracket pair
