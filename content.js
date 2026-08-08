@@ -85,13 +85,142 @@
   // Binary connectors / neutrals trimmed off a run's EDGES so they stay in the
   // outer bidi flow (an arrow between math and a Hebrew word must sit between
   // them, not inside the LTR island). EXCLUDES unary prefixes ¬ ± -, so "¬r"
-  // keeps its negation.
+  // keeps its negation. Also EXCLUDES "|": unlike "=+*/^~<>" it is virtually
+  // always a self-pairing delimiter (absolute value "|n|", "such that" in
+  // set-builder notation) rather than a binary connector to an adjacent word
+  // — trimming it off a run's edge strands one bar of the pair as loose text
+  // (e.g. "|n| = A" would lose its opening bar and read "n| = A").
   var EDGE =
-    "\\s=+*/^~|<>:;" +
+    "\\s=+*/^~<>:;" +
     "\\u00D7\\u00F7" +
     "\\u2190-\\u21FF\\u2227\\u2228\\u27F0-\\u27FF";
   var LEAD_TRIM = new RegExp("^[" + EDGE + "]+");
   var TRAIL_TRIM = new RegExp("[" + EDGE + "]+$");
+
+  // A single TECH character, for scanning outward from a bare "connector"
+  // arrow (below) to find the nearest strong-direction neighbor.
+  var TECH_CHAR = new RegExp("[" + TECH + "]", "u");
+
+  // ====================================================================
+  // Arrow flipping for bare "flow" arrows left in the natural RTL flow
+  // ====================================================================
+  // EDGE-trimming (above) deliberately leaves a connector arrow OUTSIDE the
+  // LTR island so it sits between its two operands (e.g. "תן לי 0 → אחזיר
+  // 5"). That gets the POSITION right — but real browsers do not auto-mirror
+  // arrow glyphs for RTL runs (only paired brackets/quotes get that
+  // treatment), so a bare "→" left in Hebrew flow still renders pointing
+  // right even when the operand it points to now sits to its LEFT. Genuine
+  // math notation ("¬r → ¬¬r = r") stays inside one island and is never
+  // touched by this — only bare arrows that fall OUTSIDE an island are
+  // candidates. Symmetric arrows (↔, ⟷) are omitted: flipping is a no-op.
+  // Real relational operators (< > ≤ ≥) are NEVER included here — flipping
+  // those would invert the actual mathematical claim, not just its reading
+  // direction.
+  //
+  // The glyph is flipped via a CSS transform on a wrapper span (below),
+  // rather than by substituting the Unicode character. Substitution isn't
+  // safely repeatable: the same rendered text can legitimately get walked
+  // more than once (a direct scan, then a forced block-level re-wrap — see
+  // wrapBlockForced below), and since the candidate set includes both arrow
+  // directions (so source text already using "←" is handled too), a second
+  // pass over an already-substituted character would flip it right back. A
+  // span is self-marking instead — SKIP_SEL (below) excludes its contents
+  // from every later walk, so each arrow is only ever decided once — and
+  // copy/paste still yields the original character.
+  var ARROW_FLIP_RE = /[\u2190\u2192\u21D0\u21D2\u21A4\u21A6\u219E\u21A0\u27F5\u27F6\u27F8\u27F9\u2B60\u2B62]/g;
+
+  // Scan away from `start` (dir = -1 back, +1 forward) through `s`, skipping
+  // neutral characters (whitespace, quotes, punctuation, digits — anything
+  // that isn't decisive), until a strong RTL char (-> true), a TECH char
+  // (-> false, we've entered math/Latin territory), or the string end
+  // (-> null, inconclusive) is found.
+  function scanStrongDir(s, start, dir) {
+    var i = start;
+    while (i >= 0 && i < s.length) {
+      var ch = s.charAt(i);
+      if (RTL.test(ch)) return true;
+      if (TECH_CHAR.test(ch)) return false;
+      i += dir;
+    }
+    return null;
+  }
+
+  // Resolve the nearest strong direction on one side of a bare arrow,
+  // falling back through sibling nodes (and the parent's siblings) when the
+  // current text node itself is inconclusive right at its edge — e.g. an
+  // arrow alone in its own text node between two <strong> fragments.
+  // Defaults to RTL if the whole context is exhausted, since wrapTextNode
+  // only ever runs inside a block already confirmed to resolve RTL.
+  function contextIsRTL(tn, text, idx, dir) {
+    var r = scanStrongDir(text, idx, dir);
+    if (r !== null) return r;
+    var node = dir === 1 ? tn.nextSibling : tn.previousSibling;
+    var hops = 0;
+    while (node && hops < 8) {
+      var t = node.nodeType === 3 ? node.nodeValue : node.textContent || "";
+      if (t) {
+        var r2 = scanStrongDir(t, dir === 1 ? 0 : t.length - 1, dir);
+        if (r2 !== null) return r2;
+      }
+      node = dir === 1 ? node.nextSibling : node.previousSibling;
+      hops++;
+    }
+    var p = tn.parentElement;
+    if (p) {
+      node = dir === 1 ? p.nextSibling : p.previousSibling;
+      hops = 0;
+      while (node && hops < 8) {
+        var t2 = node.nodeType === 3 ? node.nodeValue : node.textContent || "";
+        if (t2) {
+          var r3 = scanStrongDir(t2, dir === 1 ? 0 : t2.length - 1, dir);
+          if (r3 !== null) return r3;
+        }
+        node = dir === 1 ? node.nextSibling : node.previousSibling;
+        hops++;
+      }
+    }
+    return true;
+  }
+
+  // A bare arrow flips unless BOTH sides resolve to LTR (matching bidi rule
+  // N1: a neutral between two same-type strong runs takes that type; mixed
+  // or RTL-adjacent falls back to the RTL embedding direction).
+  function shouldFlipArrow(tn, text, idx) {
+    var before = contextIsRTL(tn, text, idx - 1, -1);
+    var after = contextIsRTL(tn, text, idx + 1, 1);
+    return before || after;
+  }
+
+  // Append a GAP slice (text outside any LTR island) to `frag`, wrapping any
+  // arrow that context calls for flipping in a <span class="hebi-arrow-flip">
+  // — CSS (gated on data-hebi) does the actual visual mirroring; SKIP_SEL
+  // keeps every later walk out of the span so the decision is never redone.
+  // `absStart` is the slice's offset in the full node text, so context
+  // scanning always sees the real surrounding characters.
+  function appendGapText(frag, tn, text, absStart, slice) {
+    if (!slice) return;
+    if (!ARROW_FLIP_RE.test(slice)) {
+      frag.appendChild(document.createTextNode(slice));
+      return;
+    }
+    ARROW_FLIP_RE.lastIndex = 0;
+    var last = 0,
+      m;
+    while ((m = ARROW_FLIP_RE.exec(slice)) !== null) {
+      var relIdx = m.index;
+      if (relIdx > last) frag.appendChild(document.createTextNode(slice.slice(last, relIdx)));
+      if (shouldFlipArrow(tn, text, absStart + relIdx)) {
+        var span = document.createElement("span");
+        span.className = "hebi-arrow-flip";
+        span.textContent = m[0];
+        frag.appendChild(span);
+      } else {
+        frag.appendChild(document.createTextNode(m[0]));
+      }
+      last = relIdx + 1;
+    }
+    if (last < slice.length) frag.appendChild(document.createTextNode(slice.slice(last)));
+  }
 
   // A maximal run of TECH characters, allowing single internal spaces so
   // "(p ∧ q) → ¬r" is captured as ONE run rather than several.
@@ -102,7 +231,8 @@
   // whose internal structure must not be touched (KaTeX/MathJax/SVG/MathML).
   var SKIP_SEL =
     "code,pre,kbd,samp,.katex,.katex-display,.katex-mathml,.katex-html," +
-    "mjx-container,svg,math,script,style,noscript,textarea,.hebi-ltr";
+    "mjx-container,svg,math,script,style,noscript,textarea,.hebi-ltr," +
+    ".hebi-arrow-flip";
 
   // Managed block elements whose base direction we set.
   var DIR_SEL =
@@ -239,7 +369,16 @@
       if (s < e && worthy) ranges.push([s, e]);
       if (RUN.lastIndex === m.index) RUN.lastIndex++; // guard against zero-width
     }
-    if (!ranges.length) return;
+    if (!ranges.length) {
+      // No math island here, but a bare connector arrow (e.g. a lone "→"
+      // between two Hebrew words, or between two <strong>-split fragments)
+      // can still need flipping even though nothing gets isolated.
+      if (!ARROW_FLIP_RE.test(text)) return;
+      var wholeFrag = document.createDocumentFragment();
+      appendGapText(wholeFrag, tn, text, 0, text);
+      parent.replaceChild(wholeFrag, tn);
+      return;
+    }
 
     // Set-builder notation ("{...}") reads poorly when it's crammed directly
     // against whatever precedes it with no space — break it onto its own
@@ -267,7 +406,9 @@
     for (var i = 0; i < ranges.length; i++) {
       var rs = ranges[i][0],
         re = ranges[i][1];
-      if (rs > cursor) frag.appendChild(document.createTextNode(text.slice(cursor, rs)));
+      if (rs > cursor) {
+        appendGapText(frag, tn, text, cursor, text.slice(cursor, rs));
+      }
       var runText = text.slice(rs, re);
 
       // Split into independent clauses at any top-level comma so a chain
@@ -291,7 +432,9 @@
       }
       cursor = re;
     }
-    if (cursor < text.length) frag.appendChild(document.createTextNode(text.slice(cursor)));
+    if (cursor < text.length) {
+      appendGapText(frag, tn, text, cursor, text.slice(cursor));
+    }
     parent.replaceChild(frag, tn);
   }
 

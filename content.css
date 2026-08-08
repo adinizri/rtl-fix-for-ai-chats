@@ -213,6 +213,17 @@ html[data-hebi="on"] .hebi-ltr {
   unicode-bidi: isolate !important;
 }
 
+/* A "flow" arrow (e.g. the → in "give me 0 → return 5") that content.js left
+   in the natural RTL flow so it sits between its two operands. Real browsers
+   don't auto-mirror arrow glyphs the way they do parentheses, so a literal
+   "→" still points right even once its target operand ends up on its LEFT.
+   This flips the GLYPH only (inline-block + horizontal flip) — the
+   underlying character, copy/paste, and its bidi position are untouched. */
+html[data-hebi="on"] .hebi-arrow-flip {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
 
 /* =====================================================================
    4. COMPOSER / EDITOR  — REMOVABLE SECTION
