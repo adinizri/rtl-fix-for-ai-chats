@@ -486,6 +486,27 @@
       </p>
     </div>
 
+    <!-- 36. Bug repro: streamed responses can leave one sentence split across
+         sibling Text nodes (e.g. the host app appends the next chunk as a
+         new node instead of extending the last one). Text.splitText()
+         reproduces that DOM shape directly, without needing a live stream:
+         "g:𝒫(A)→𝒫(B)" is split right before "(A)" into two sibling nodes,
+         the same boundary a real capture from claude.ai showed. -->
+    <div class="card">
+      <small class="tag">36 · Bug repro — sentence split across sibling text nodes (streaming)</small>
+      <p id="split-test-36">
+        בנינו: g:𝒫(A)→𝒫(B) לפי g(C)=f[C].
+      </p>
+      <script>
+        (function () {
+          var p = document.getElementById("split-test-36");
+          var tn = p.firstChild;
+          var boundary = tn.nodeValue.indexOf("(A)");
+          if (boundary > -1) tn.splitText(boundary);
+        })();
+      </script>
+    </div>
+
     <script>
       var btn = document.getElementById("ab");
       var state = document.getElementById("state");

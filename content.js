@@ -619,13 +619,29 @@
   // Collection + scheduling
   // ====================================================================
 
+  // A streamed AI response can leave one logical sentence split across
+  // multiple sibling Text nodes — e.g. if the model paused mid-stream right
+  // when our 400ms "mutation quiet" debounce happened to fire, and the host
+  // app appends the next chunk as a NEW text node instead of extending the
+  // existing one. Each half then gets pattern-matched in isolation, so a
+  // technical run spanning the boundary (e.g. "g:𝒫" | "(A)→𝒫(B)") never gets
+  // recognized as one run — the first half looks unworthy on its own and is
+  // left bare, the second half becomes its own separate island. Normalizing
+  // the parent before we collect text nodes merges any such split back into
+  // one Text node, so run-matching always sees the real, current text
+  // regardless of how the host app happened to append it.
   function collectInto(root, out) {
     if (!root) return;
     if (root.nodeType === 3) {
-      out.push(root);
-      return;
+      root = root.parentNode;
+      if (!root) return;
     }
     if (root.nodeType !== 1 || skip(root)) return;
+    try {
+      root.normalize();
+    } catch (e) {
+      /* ignore */
+    }
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     var n;
     while ((n = walker.nextNode())) {
@@ -642,13 +658,13 @@
     var roots = queue;
     queue = [];
     if (!roots.length) return;
-    var nodes = [];
-    for (var i = 0; i < roots.length; i++) {
-      if (roots[i].isConnected !== false) collectInto(roots[i], nodes);
-    }
 
-    if (observer) observer.disconnect(); // don't observe our own writes
+    if (observer) observer.disconnect(); // don't observe our own writes (incl. normalize())
     try {
+      var nodes = [];
+      for (var i = 0; i < roots.length; i++) {
+        if (roots[i].isConnected !== false) collectInto(roots[i], nodes);
+      }
       // 1. Wrap raw math runs in Hebrew-containing nodes (creates the islands
       //    that block-direction resolution below then skips).
       for (var j = 0; j < nodes.length; j++) {
