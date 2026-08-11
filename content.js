@@ -340,17 +340,16 @@
       //    Balanced runs like "(p ∧ q)", "¬(∃x: P(x))" and the half-open
       //    interval "(0, 1]" are left whole.
       //
-      //    A forward scan finds the first excess (unmatched) closer, and a
-      //    backward scan finds the last excess (unmatched) opener; the run is
-      //    truncated there. This is deliberately NOT "check only the run's
-      //    first/last character" — a dangling closer can have trailing
-      //    content of its own after it within the same run (e.g. a Hebrew
-      //    parenthetical "(מ-ℝ ל-ℝ), מה..." captures "-ℝ)," as one run: the
-      //    ")" is dangling — its "(" is outside, left earlier — but a
-      //    single-character edge check misses it because the trailing ","
-      //    is what's actually at the run's last position). Scanning the
-      //    whole run for the unmatched position catches this regardless of
-      //    what trails it.
+      //    2a. A dangling CLOSER's opener is always outside the run and
+      //    strictly BEFORE it, so once bracket accounting goes negative
+      //    everything from there on is unreliable — truncate the run's END
+      //    at that position, whichever character actually trails the
+      //    closer. This is deliberately a full-run scan, not just "check the
+      //    last character": a dangling closer can have trailing content of
+      //    its own after it within the same run (e.g. a Hebrew parenthetical
+      //    "(מ-ℝ ל-ℝ), מה..." captures "-ℝ)," as one run — the ")" is
+      //    dangling, but a single-character edge check would miss it because
+      //    the trailing "," is what's actually at the run's last position).
       var bal = 0,
         firstUnmatchedClose = -1,
         k;
@@ -368,21 +367,42 @@
         e -= run.length - firstUnmatchedClose;
         run = run.slice(0, firstUnmatchedClose);
       }
-      bal = 0;
-      var lastUnmatchedOpen = -1;
-      for (k = run.length - 1; k >= 0; k--) {
-        if (isCloseB(run.charAt(k))) bal++;
-        else if (isOpenB(run.charAt(k))) {
-          if (bal > 0) bal--;
-          else {
-            lastUnmatchedOpen = k;
-            break;
+
+      // 2b. A dangling OPENER's closer is always outside the run and
+      // strictly AFTER it — but unlike a closer, that does NOT mean "always
+      // keep the same side": which side holds the useful content depends on
+      // WHERE the opener sits. "(x=5" (opener at the very front) needs the
+      // SUFFIX kept ("x=5"); "g(C)=g(C) (" (opener at the very back, e.g.
+      // the start of a *different*, later parenthetical the run's greedy
+      // whitespace-bridging swept in) needs the PREFIX kept
+      // ("g(C)=g(C) "). A single "scan for any unmatched opener, always keep
+      // one side" rule cannot get both right — so this is edge-only and
+      // iterative, exactly mirroring the classic bracket-matching edge
+      // cases: an opener literally at the end is unconditionally dangling
+      // (nothing can ever close it in what remains); an opener literally at
+      // the start is dangling only if openers now outnumber closers overall.
+      while (run.length) {
+        var f = run.charAt(0),
+          l = run.charAt(run.length - 1);
+        if (isOpenB(l)) {
+          e--;
+          run = run.slice(0, -1);
+          continue;
+        }
+        if (isOpenB(f)) {
+          var opensN = 0,
+            closesN = 0;
+          for (k = 0; k < run.length; k++) {
+            if (isOpenB(run.charAt(k))) opensN++;
+            else if (isCloseB(run.charAt(k))) closesN++;
+          }
+          if (opensN > closesN) {
+            s++;
+            run = run.slice(1);
+            continue;
           }
         }
-      }
-      if (lastUnmatchedOpen !== -1) {
-        s += lastUnmatchedOpen + 1;
-        run = run.slice(lastUnmatchedOpen + 1);
+        break;
       }
 
       // Wrap-worthy if it has a real operator, OR it contains a bracket pair

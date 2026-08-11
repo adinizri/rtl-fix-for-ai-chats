@@ -507,6 +507,19 @@
       </script>
     </div>
 
+    <!-- 37. Bug repro: a technical run at the very START of a sentence, ending
+         in a dangling opener that starts a LATER Hebrew parenthetical
+         ("g(C₁)=g(C₂) ("). The dangling opener must be trimmed from the run's
+         END (keeping the balanced "g(C₁)=g(C₂)" prefix), not from the start
+         — the opposite of "(x=5" in test 23, where the dangling opener sits
+         at the run's START and the SUFFIX must be kept instead. -->
+    <div class="card">
+      <small class="tag">37 · Bug repro — leading run ending in a dangling opener (g(C₁)=g(C₂) ()</small>
+      <p>
+        נניח g(C₁)=g(C₂) (עבור C₁,C₂∈𝒫(A) כלשהן). נראה ש-C₁=C₂.
+      </p>
+    </div>
+
     <script>
       var btn = document.getElementById("ab");
       var state = document.getElementById("state");
